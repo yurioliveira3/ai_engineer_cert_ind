@@ -34,5 +34,9 @@ Arquitetura | Governança/Transparência | Guardrails | Dados Sensíveis | Clean
 4. UI Streamlit
 5. Documentação e Polish
 
+## Referência
+- Projeto Analyticsql (https://github.com/yurioliveira3/analytics_ql)
+- Revisar arquitetura e o que pode ser reaprovietado para a POC
+
 ## Entrega
 Repositório público no GitHub + README + diagrama de arquitetura em PDF
