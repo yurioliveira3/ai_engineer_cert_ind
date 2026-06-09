@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ src/
 COPY scripts/ scripts/
 
-ENV HF_HOME=/data/hf_cache
+ENV HF_HOME=/app/data/hf_cache \
+    PYTHONPATH=/app
 
 RUN adduser --disabled-password --gecos "" appuser
 USER appuser
