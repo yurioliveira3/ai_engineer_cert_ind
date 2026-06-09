@@ -90,27 +90,27 @@ class TestUserInputValidation:
 
 class TestMetricsValidation:
     def test_metric_range_warning_mortality(self):
-        metrics = {"mortality_rate": 0.65, "icu_rate": 0.1}
+        metrics = {"mortality_rate": {"taxa_mortalidade": 65.0}}
         result = validate_metrics(metrics)
-        assert any("mortality" in w.lower() or "50%" in w for w in result.get("warnings", []))
+        assert any("ALERTA" in w or "mortalidade" in w.lower() for w in result.get("warnings", []))
 
     def test_metric_range_warning_icu(self):
-        metrics = {"mortality_rate": 0.1, "icu_rate": 1.2}
+        metrics = {"icu_rate": {"taxa_uti": 120.0}}
         result = validate_metrics(metrics)
-        assert any("icu" in w.lower() or "100%" in w for w in result.get("warnings", []))
+        assert any("ALERTA" in w or "UTI" in w for w in result.get("warnings", []))
 
     def test_metric_range_warning_vaccination(self):
-        metrics = {"vaccination_rate": 1.5}
+        metrics = {"vaccination_rate": {"taxa_vacinacao": 150.0}}
         result = validate_metrics(metrics)
-        assert any("vaccination" in w.lower() or "100%" in w for w in result.get("warnings", []))
+        assert any("ALERTA" in w or "vacinação" in w.lower() for w in result.get("warnings", []))
 
     def test_metric_range_warning_case_increase(self):
-        metrics = {"case_increase": 6.0}
+        metrics = {"case_increase_rate": {"taxa_aumento": 600.0}}
         result = validate_metrics(metrics)
-        assert any("increase" in w.lower() or "500%" in w for w in result.get("warnings", []))
+        assert any("ALERTA" in w or "aumento" in w.lower() for w in result.get("warnings", []))
 
     def test_no_warnings_for_normal_metrics(self):
-        metrics = {"mortality_rate": 0.1, "icu_rate": 0.2}
+        metrics = {"mortality_rate": {"taxa_mortalidade": 7.75}, "icu_rate": {"taxa_uti": 27.28}}
         result = validate_metrics(metrics)
         assert result.get("warnings", []) == []
 

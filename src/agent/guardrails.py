@@ -183,26 +183,43 @@ def validate_user_input(text: str) -> str:
     return text
 
 
+def _extract_numeric(value) -> float | None:
+    """Extract a numeric value from a metric result.
+
+    Metric results can be either a float/int or a dict like {'taxa_mortalidade': 7.75}.
+    """
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, dict):
+        for v in value.values():
+            if isinstance(v, (int, float)):
+                return float(v)
+    return None
+
+
 def validate_metrics(metrics: dict) -> dict:
-    """Validate metric values and add warnings for suspicious ranges."""
+    """Validate metric values and add warnings for suspicious ranges.
+
+    Each metric value can be a number or a dict like {'taxa_mortalidade': 7.75}.
+    """
     result = dict(metrics)
     warnings = []
 
-    mortality = metrics.get("mortality_rate")
-    if mortality is not None and mortality > 0.5:
-        warnings.append(f"Mortality rate {mortality:.0%} exceeds 50% threshold")
+    mortality = _extract_numeric(metrics.get("mortality_rate"))
+    if mortality is not None and mortality > 50:
+        warnings.append(f"⚠ ALERTA: Taxa de mortalidade de {mortality}% está acima de 50%")
 
-    icu_rate = metrics.get("icu_rate")
-    if icu_rate is not None and icu_rate > 1.0:
-        warnings.append(f"ICU rate {icu_rate:.0%} exceeds 100% threshold")
+    icu_rate = _extract_numeric(metrics.get("icu_rate"))
+    if icu_rate is not None and icu_rate > 100:
+        warnings.append(f"⚠ ALERTA: Taxa de UTI de {icu_rate}% acima de 100%")
 
-    vaccination = metrics.get("vaccination_rate")
-    if vaccination is not None and vaccination > 1.0:
-        warnings.append(f"Vaccination rate {vaccination:.0%} exceeds 100% threshold")
+    vaccination = _extract_numeric(metrics.get("vaccination_rate"))
+    if vaccination is not None and vaccination > 100:
+        warnings.append(f"⚠ ALERTA: Taxa de vacinação de {vaccination}% acima de 100%")
 
-    case_increase = metrics.get("case_increase")
-    if case_increase is not None and case_increase > 5.0:
-        warnings.append(f"Case increase {case_increase:.0%} exceeds 500% threshold")
+    case_increase = _extract_numeric(metrics.get("case_increase_rate"))
+    if case_increase is not None and case_increase > 500:
+        warnings.append(f"⚠ ALERTA: Taxa de aumento de {case_increase}% acima de 500%")
 
     if warnings:
         result["warnings"] = warnings
