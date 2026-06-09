@@ -1,9 +1,10 @@
 """Seed the SRAG database with cleaned CSV data.
 
 Usage:
-    python scripts/seed_db.py [path_to_csv]
+    python scripts/seed_db.py [path_to_csv ...]
 
-If no path is provided, looks for CSV files in data/raw/.
+If no paths are provided, loads all CSV files from data/raw/.
+Multiple files are concatenated before insertion.
 """
 
 import glob
@@ -11,6 +12,7 @@ import logging
 import sys
 from pathlib import Path
 
+import pandas as pd
 from sqlalchemy import create_engine, text
 
 from src.config import Settings
@@ -20,82 +22,87 @@ from src.data.models import Base
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+MODEL_COLUMNS = [
+    "dt_notific",
+    "dt_sin_pri",
+    "dt_interna",
+    "evolucao",
+    "evolucao_label",
+    "dt_evoluca",
+    "uti",
+    "dt_entuti",
+    "dt_saiduti",
+    "vacine_cov",
+    "vacina_cov",
+    "dose_1_cov",
+    "dose_2_cov",
+    "nu_idade_n",
+    "cs_sexo",
+    "sg_uf_not",
+    "classi_fin",
+    "caso_confirmado",
+    "sem_not",
+    "ano_notificacao",
+]
 
-def seed_database(csv_path: str | None = None):
-    """Load CSV, transform, and insert into PostgreSQL."""
+
+def _prepare_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Select and rename columns to match the SQLAlchemy model."""
+    available = [c for c in MODEL_COLUMNS if c in df.columns]
+    df = df[available].copy()
+
+    # Drop rows with null dt_notific (invalid records)
+    if "dt_notific" in df.columns:
+        before = len(df)
+        df = df.dropna(subset=["dt_notific"])
+        dropped = before - len(df)
+        if dropped > 0:
+            logger.info(f"Dropped {dropped} rows with null dt_notific")
+
+    return df
+
+
+def seed_database(csv_paths: list[str] | None = None):
+    """Load CSVs, transform, and insert into PostgreSQL."""
     settings = Settings()
     engine = create_engine(settings.database_url)
 
-    # Find CSV file
-    if csv_path:
-        filepath = Path(csv_path)
+    # Find CSV files
+    if csv_paths:
+        files = [Path(p) for p in csv_paths]
     else:
         data_dir = Path("data/raw")
-        csv_files = sorted(
-            glob.glob(str(data_dir / "*.csv")) + glob.glob(str(data_dir / "*.csv.gz"))
+        files = sorted(
+            Path(f)
+            for f in glob.glob(str(data_dir / "*.csv")) + glob.glob(str(data_dir / "*.csv.gz"))
         )
-        if not csv_files:
-            logger.error("No CSV files found in data/raw/. Download SRAG data first.")
+        if not files:
+            logger.error(
+                "No CSV files found in data/raw/. Run: python scripts/download_srag_data.py"
+            )
             sys.exit(1)
-        filepath = Path(csv_files[0])
 
-    logger.info(f"Loading CSV: {filepath}")
+    logger.info(f"Found {len(files)} CSV file(s) to process")
 
-    # Clean and transform
-    df = load_srag_csv(filepath)
-    logger.info(f"DataFrame shape: {df.shape}")
+    # Load and concatenate all CSVs
+    dfs = []
+    for filepath in files:
+        logger.info(f"Loading: {filepath.name}")
+        df = load_srag_csv(filepath)
+        df = _prepare_df(df)
+        dfs.append(df)
+        logger.info(f"  {filepath.name}: {len(df)} rows after cleaning")
+
+    combined = pd.concat(dfs, ignore_index=True)
+    logger.info(f"Total rows after concatenation: {len(combined)}")
 
     # Create tables
     Base.metadata.create_all(engine)
-    logger.info("Tables created")
-
-    # Rename columns to lowercase to match model
-    column_map = {
-        "DT_SIN_PRI": "dt_sin_pri",
-        "DT_EVOLUCA": "dt_evoluca",
-        "DT_ENTUTI": "dt_entuti",
-        "DT_SAIDUTI": "dt_saiduti",
-        "DOSE_1_COV": "dose_1_cov",
-        "DOSE_2_COV": "dose_2_cov",
-        "NU_IDADE_N": "nu_idade_n",
-        "CS_SEXO": "cs_sexo",
-        "SG_UF_NOT": "sg_uf_not",
-        "CLASSI_FIN": "classi_fin",
-        "EVOLUCAO": "evolucao",
-        "VACINA_COV": "vacina_cov",
-        "SEM_NOT": "sem_not",
-        "HOSPITAL": "hospital",
-    }
-    df = df.rename(columns={k: v for k, v in column_map.items() if k in df.columns})
-
-    # Select model columns that exist in the DataFrame
-    model_columns = [
-        "dt_notific",
-        "dt_sin_pri",
-        "dt_interna",
-        "evolucao",
-        "evolucao_label",
-        "dt_evoluca",
-        "uti",
-        "dt_entuti",
-        "dt_saiduti",
-        "vacina_cov",
-        "dose_1_cov",
-        "dose_2_cov",
-        "nu_idade_n",
-        "cs_sexo",
-        "sg_uf_not",
-        "classi_fin",
-        "caso_confirmado",
-        "sem_not",
-        "ano_notificacao",
-    ]
-    available_model_cols = [c for c in model_columns if c in df.columns]
-    df = df[available_model_cols]
+    logger.info("Tables created/verified")
 
     # Insert into database
-    logger.info(f"Inserting {len(df)} rows into srag.srag_cases...")
-    df.to_sql(
+    logger.info(f"Inserting {len(combined)} rows into srag.srag_cases...")
+    combined.to_sql(
         "srag_cases",
         engine,
         schema="srag",
@@ -117,12 +124,12 @@ def seed_database(csv_path: str | None = None):
             text("SELECT DISTINCT ano_notificacao FROM srag.srag_cases ORDER BY 1")
         ).fetchall()
 
-    logger.info(f"Total rows: {count}")
-    logger.info(f"Max dt_notific: {max_date}")
+    logger.info(f"Total rows: {count:,}")
+    logger.info(f"Max dt_notific (data_ref): {max_date}")
     logger.info(f"Years: {[y[0] for y in years]}")
     logger.info("Seed complete!")
 
 
 if __name__ == "__main__":
-    csv_path = sys.argv[1] if len(sys.argv) > 1 else None
-    seed_database(csv_path)
+    paths = sys.argv[1:] if len(sys.argv) > 1 else None
+    seed_database(paths)
