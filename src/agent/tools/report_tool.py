@@ -42,6 +42,7 @@ def _sanitize_for_latin1(text: str) -> str:
 class _SRAGReport(FPDF):
     def __init__(self):
         super().__init__(orientation="P", unit="mm", format="A4")
+        self.alias_nb_pages()
         self._font_loaded = False
         try:
             dejavu_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -70,9 +71,9 @@ class _SRAGReport(FPDF):
             self.set_font("DejaVu", "", 8)
         else:
             self.set_font("Helvetica", "", 8)
-        self.cell(
-            0, 10, self._t(f"Gerado em: {datetime.now().strftime('%Y-%m-%d %H:%M')}"), align="C"
-        )
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        page_num = f"Página {self.page_no()} de {{nb}}"
+        self.cell(0, 10, self._t(f"Gerado em: {timestamp} | {page_num}"), align="C")
 
     def _use_font(self, size: int):
         if self._font_loaded:
