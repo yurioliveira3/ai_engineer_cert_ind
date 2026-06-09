@@ -50,6 +50,7 @@ def _parse_ddg_results(raw: str, query: str) -> list[dict]:
                 "url": url,
                 "snippet": item.get("snippet", ""),
                 "source": _classify_source(url),
+                "published_at": None,
                 "query_used": query,
             }
         )
@@ -81,7 +82,7 @@ def search_and_index_news(
         settings: Optional Settings instance.
 
     Returns:
-        List of dicts with title, url, snippet, source, query_used.
+        List of dicts with title, url, snippet, source, published_at, query_used.
 
     Raises:
         ValueError: If max_results exceeds the allowed maximum.
