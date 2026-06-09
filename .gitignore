@@ -17,18 +17,19 @@ build/
 htmlcov/
 .mypy_cache/
 
-# Environment
+# Environment & secrets
 .env
 .env.local
 .env.*.local
+.env.test
 
-# Data (large/generated files)
+# Data (large/generated files — downloaded DATASUS CSVs go here)
 data/raw/
 data/charts/
 data/reports/
 data/logs/
 
-# Models cache (sentence-transformers)
+# Models cache (sentence-transformers ~1.3GB)
 .cache/
 data/hf_cache/
 
@@ -49,5 +50,17 @@ Thumbs.db
 # Docker
 pgdata/
 
-# Generated
+# Generated reports
 *.pdf
+
+# Ruff
+.ruff_cache/
+
+# Python type stubs
+*.pyi
+
+# Jupyter
+**/.ipynb_checkpoints/
+
+# Local overrides
+.env.local.bak
