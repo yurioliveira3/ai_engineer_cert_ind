@@ -1,5 +1,5 @@
 services:
-  db:
+  srag-db:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-srag_app}
@@ -8,7 +8,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - srag-pgdata:/var/lib/postgresql/data
       - ./db/init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-srag_app}"]
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
+  srag-app:
     build: .
     ports:
       - "8501:8501"
@@ -24,9 +24,9 @@ services:
       - ./src:/app/src
       - ./data:/data
       - ./scripts:/app/scripts
-      - hf_cache:/data/hf_cache
+      - srag-hf-cache:/data/hf_cache
     environment:
-      DATABASE_URL: postgresql://srag_app:srag_pass@db:5432/srag
+      DATABASE_URL: postgresql://${POSTGRES_USER:-srag_app}:${POSTGRES_PASSWORD:-srag_pass}@srag-db:5432/${POSTGRES_DB:-srag}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       LLM_MODEL: ${LLM_MODEL:-gemini-2.5-flash}
       LLM_API_KEY: ${LLM_API_KEY}
@@ -36,9 +36,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       HF_HOME: /data/hf_cache
     depends_on:
-      db:
+      srag-db:
         condition: service_healthy
 
 volumes:
-  pgdata:
-  hf_cache:
+  srag-pgdata:
+  srag-hf-cache:

@@ -19,9 +19,7 @@ htmlcov/
 
 # Environment & secrets
 .env
-.env.local
-.env.*.local
-.env.test
+.env.*
 
 # Data (large/generated files — downloaded DATASUS CSVs go here)
 data/raw/
@@ -62,5 +60,5 @@ pgdata/
 # Jupyter
 **/.ipynb_checkpoints/
 
-# Local overrides
-.env.local.bak
+# Planning artifacts
+docs/superpowers/

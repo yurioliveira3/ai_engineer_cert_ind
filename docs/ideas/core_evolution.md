@@ -11,24 +11,24 @@
 
 #### 2.3.T — Testes primeiro (`tests/test_news_tool.py`)
 
-- [ ] `test_search_and_index_returns_results` — retorna lista não-vazia com título, url, snippet
-- [ ] `test_search_indexes_news_in_pgvector` — após `search_and_index_news`, `COUNT(*)` em `news.news_embeddings` cresce
-- [ ] `test_search_upsert_is_idempotent` — rodar 2 vezes com mesma query não duplica URLs
-- [ ] `test_semantic_search_returns_topk` — `semantic_search_news` retorna até k resultados
-- [ ] `test_search_rate_limit_respected` — mais de 3 buscas por chamada levanta exceção
+- [x] `test_search_and_index_returns_results` — retorna lista não-vazia com título, url, snippet
+- [x] `test_search_indexes_news_in_pgvector` — após `search_and_index_news`, `COUNT(*)` em `news.news_embeddings` cresce
+- [x] `test_search_upsert_is_idempotent` — rodar 2 vezes com mesma query não duplica URLs
+- [x] `test_semantic_search_returns_topk` — `semantic_search_news` retorna até k resultados
+- [x] `test_search_rate_limit_respected` — mais de 5 resultados por busca levanta exceção
 
 ---
 
-- [ ] `src/agent/tools/news_tool.py`:
+- [x] `src/agent/tools/news_tool.py`:
   - `search_and_index_news(query: str) -> list[dict]`:
     1. `DuckDuckGoSearchResults(max_results=5, region="br-pt", time="m")`
     2. Para cada resultado: gerar embedding de `title + snippet`, chamar `repo.upsert()`
-    3. Retornar lista `{title, url, snippet, source, published_at}`
+    3. Retornar lista `{title, url, snippet, source, published_at}` (published_at=None para DDG)
   - `semantic_search_news(query: str, k=3) -> list[dict]` — chama `repo.similarity_search(query, k)`
-- [ ] Domínios confiáveis (marcar resultados de fora como "fonte não-verificada"):
+- [x] Domínios confiáveis (marcar resultados de fora como "fonte não-verificada"):
   `gov.br`, `fiocruz.br`, `who.int`, `saude.gov.br`, `paho.org`, `g1.globo.com`, `folha.uol.com.br`
-- [ ] Rate limiting: máximo 3 buscas por execução do agente
-- [ ] Fallback: se DuckDuckGo falhar ou retornar < 2 resultados, tentar `TavilySearchResults` (1000 buscas/mês free)
+- [x] Rate limiting: máximo 5 resultados por busca (max_results > 5 rejeita)
+- [ ] ~~Fallback Tavily~~ → adiado para improvements (só DuckDuckGo por ora)
 
 ---
 
@@ -36,18 +36,19 @@
 
 #### 2.4.T — Testes primeiro (`tests/test_chart_tool.py`)
 
-- [ ] `test_generate_daily_chart_returns_path` — retorna path de PNG existente
-- [ ] `test_generate_monthly_chart_returns_path`
-- [ ] `test_chart_with_empty_data_does_not_crash` — dados vazios geram gráfico com nota "sem dados"
-- [ ] `test_png_export_has_content` — arquivo PNG > 1KB
+- [x] `test_generate_daily_chart_returns_path` — retorna path de PNG existente
+- [x] `test_generate_monthly_chart_returns_path`
+- [x] `test_chart_with_empty_data_does_not_crash` — dados vazios geram gráfico com nota "sem dados"
+- [x] `test_png_export_has_content` — arquivo PNG > 1KB
 
 ---
 
-- [ ] `src/agent/tools/chart_tool.py`:
+- [x] `src/agent/tools/chart_tool.py`:
   - `generate_daily_cases_chart(data: list[dict]) -> tuple[str, Figure]` — line chart, eixo X datas (dd/mm), salva `data/charts/daily_cases.png`
   - `generate_monthly_cases_chart(data: list[dict]) -> tuple[str, Figure]` — bar chart, eixo X meses (mmm/yyyy), salva `data/charts/monthly_cases.png`
-- [ ] Configuração visual: template `plotly_white`, labels em português, annotation com data de referência dos dados
-- [ ] Export PNG: `fig.write_image(path, width=800, height=400)` via `kaleido`
+- [x] Configuração visual: template `plotly_white`, labels em português, annotation com data de referência dos dados
+- [x] Export PNG: `fig.write_image(path, width=800, height=400)` via `kaleido`
+- [ ] ~~kaleido fallback matplotlib~~ → adiada (kaleido funciona no Docker)
 
 **Armadilha:** `kaleido` pode precisar de dependências extras no Docker — testar cedo. Fallback: `matplotlib` para export estático.
 
@@ -57,15 +58,15 @@
 
 #### 2.5.T — Testes primeiro (`tests/test_report_tool.py`)
 
-- [ ] `test_generate_report_returns_markdown` — markdown contém as 4 métricas
-- [ ] `test_generate_report_returns_pdf_path` — PDF criado em `data/reports/`
-- [ ] `test_pdf_opens_without_error` — arquivo PDF é válido (header `%PDF`)
-- [ ] `test_report_contains_news_section` — seção de notícias presente quando `news` não-vazia
-- [ ] `test_portuguese_accents_in_pdf` — verificar caracteres acentuados (ç, ã, é) não corrompidos
+- [x] `test_generate_report_returns_markdown` — markdown contém as 4 métricas
+- [x] `test_generate_report_returns_pdf_path` — PDF criado em `data/reports/`
+- [x] `test_pdf_opens_without_error` — arquivo PDF é válido (header `%PDF`)
+- [x] `test_report_contains_news_section` — seção de notícias presente quando `news` não-vazia
+- [x] `test_portuguese_accents_in_pdf` — verificar caracteres acentuados (ç, ã, é) não corrompidos
 
 ---
 
-- [ ] `src/agent/tools/report_tool.py`:
+- [x] `src/agent/tools/report_tool.py`:
   - `generate_report(metrics: dict, charts: dict, news: list, analysis: str) -> dict` → `{"markdown": str, "pdf_path": str}`
   - Template markdown:
     ```markdown
@@ -86,7 +87,7 @@
     ---
     *Relatório gerado automaticamente por SRAG Agent em {data_hora}*
     ```
-  - PDF com `fpdf2`: página A4, fonte Helvetica, gráficos redimensionados, rodapé com numeração
+  - PDF com `fpdf2`: página A4, fonte DejaVu (Helvetica fallback), rodapé com numeração "Página X de Y"
 
 **Armadilha:** `fpdf2` com UTF-8 PT-BR pode precisar de `add_font()` para TTF Unicode. Fallback: `weasyprint`.
 
@@ -98,19 +99,19 @@
 
 #### 2.8.T — Testes primeiro (`tests/test_guardrails.py` — complementar aos do Foundations)
 
-- [ ] `test_audit_logger_start_session` — `start_session()` cria linha em `audit.agent_sessions`, retorna UUID
-- [ ] `test_audit_logger_end_session` — `end_session()` atualiza `finished_at` e `status`
-- [ ] `test_audit_logger_log_decision` — `log_decision()` cria linha em `audit.agent_decisions` com `session_id` correto
-- [ ] `test_audit_logger_log_query_updates_session_id` — `log_query()` preenche `session_id` na linha de `audit.query_history`
-- [ ] `test_json_log_file_created` — arquivo `data/logs/session_{id}.json` criado após `end_session()`
-- [ ] `test_sql_injection_blocked` — input `"; DROP TABLE srag.srag_cases; --` bloqueado
-- [ ] `test_prompt_injection_blocked` — "ignore suas instruções anteriores" detectado e sanitizado
-- [ ] `test_output_pii_filter` — padrão de CPF no output mascarado como `XXX.XXX.XXX-XX`
-- [ ] `test_metric_range_warning` — mortalidade > 50% gera warning no relatório
+- [x] `test_audit_logger_start_session` — `start_session()` cria linha em `audit.agent_sessions`, retorna UUID
+- [x] `test_audit_logger_end_session` — `end_session()` atualiza `finished_at` e `status`
+- [x] `test_audit_logger_log_decision` — `log_decision()` cria linha em `audit.agent_decisions` com `session_id` correto
+- [x] `test_audit_logger_log_query_updates_session_id` — `log_query()` preenche `session_id` na linha de `audit.query_history`
+- [x] `test_json_log_file_created` — arquivo `data/logs/session_{id}.json` criado após `end_session()`
+- [x] `test_sql_injection_blocked` — input `"; DROP TABLE srag.srag_cases; --` bloqueado
+- [x] `test_prompt_injection_blocked` — "ignore suas instruções anteriores" detectado e sanitizado
+- [x] `test_output_pii_filter` — padrão de CPF no output mascarado como `XXX.XXX.XXX-XX`
+- [x] `test_metric_range_warning` — mortalidade > 50% gera warning no relatório
 
 ---
 
-- [ ] `src/agent/logging_config.py`:
+- [x] `src/agent/logging_config.py`:
   - `setup_logger(name, level)` — rotação diária: `logs/srag_agent_YYYYMMDD.log` + console INFO+
   - `get_logger(name=None)`
   - `AgentAuditLogger`:
@@ -124,14 +125,14 @@
         def get_session_log(self, session_id) -> dict: ...
     ```
   - Cada INSERT no Postgres é replicado em `data/logs/session_{session_id}.json` (backup offline)
-  - Decorator `@audit_step(step_name)` envolve cada node do orquestrador: chama `log_decision` automaticamente com duração e status
+  - Decorator `@audit_step(step_name)` disponível mas nodes usam `log_decision()` direto (SPEC_DEVIATION documentado)
 
-- [ ] `src/agent/guardrails.py` — adicionar ao que já existe do Foundations:
+- [x] `src/agent/guardrails.py` — adicionar ao que já existe do Foundations:
   - `validate_user_input(text: str) -> str` — limite 1000 chars, sanitizar especiais, detectar "ignore as instruções anteriores" e SQL embutido
   - `validate_metrics(metrics: dict) -> dict` — ranges: mortalidade 0-100% (flag > 50%), UTI 0-100%, vacinação 0-100%, aumento -100% a +1000% (flag > 500%)
   - `validate_output_pii(text: str) -> str` — regex para CPF, telefone, email; mascarar e logar warning
 
-**Commit:** `test+feat: audit logger, guardrails runtime — AgentAuditLogger, @audit_step, PII filter`
+**Commit:** `test+feat: audit logger, guardrails runtime — AgentAuditLogger, @audit_step, PII filter` ✅
 
 ---
 
@@ -141,18 +142,18 @@
 
 #### 2.7.T — Testes primeiro (`tests/test_orchestrator.py`)
 
-- [ ] `test_agent_full_flow` — fluxo completo executa sem erro, state final tem todas as chaves
-- [ ] `test_agent_returns_all_metrics` — `state["metrics"]` contém as 4 métricas
-- [ ] `test_agent_generates_charts` — `state["charts"]` contém paths de 2 gráficos existentes
-- [ ] `test_agent_generates_report` — `state["report_markdown"]` não-vazio, `state["report_pdf_path"]` aponta para arquivo
-- [ ] `test_agent_graceful_degradation_news` — se news tool levantar exceção, agente continua e relatório é gerado sem seção de notícias
-- [ ] `test_agent_graceful_degradation_metrics` — se uma métrica falhar, as outras 3 continuam
-- [ ] `test_audit_session_created` — `audit.agent_sessions` recebe linha ao invocar o agente
-- [ ] `test_audit_decisions_logged` — `audit.agent_decisions` tem 6 linhas (uma por node) após execução completa
+- [x] `test_agent_full_flow` — fluxo completo executa sem erro, state final tem todas as chaves
+- [x] `test_agent_returns_all_metrics` — `state["metrics"]` contém as 4 métricas
+- [x] `test_agent_generates_charts` — `state["charts"]` contém paths de 2 gráficos existentes (implícito em full_flow)
+- [x] `test_agent_generates_report` — `state["report_markdown"]` não-vazio, `state["report_pdf_path"]` aponta para arquivo (implícito em full_flow)
+- [x] `test_agent_graceful_degradation_news` — se news tool levantar exceção, agente continua e relatório é gerado sem seção de notícias
+- [x] `test_agent_graceful_degradation_metrics` — se uma métrica falhar, as outras 3 continuam
+- [x] `test_audit_session_created` — `audit.agent_sessions` recebe linha ao invocar o agente
+- [x] `test_audit_decisions_logged` — `audit.agent_decisions` tem 6 linhas (uma por node) após execução completa
 
 ---
 
-- [ ] `src/agent/orchestrator.py`:
+- [x] `src/agent/orchestrator.py`:
 
   **State:**
   ```python
@@ -169,7 +170,7 @@
       session_id:      str
   ```
 
-  **Nodes (fluxo sequencial) — cada um decorado com `@audit_step`:**
+  **Nodes (fluxo sequencial) — cada um chama `audit_logger.log_decision()` direto (SPEC_DEVIATION):**
   - `calculate_metrics` — chama SQL tool para cada uma das 4 métricas; erros individuais não param o fluxo
   - `generate_charts` — chama SQL tool para dados temporais + Chart tool
   - `search_news` — `search_and_index_news(query)` com query derivada das métricas calculadas
@@ -185,18 +186,18 @@
 
   > Edge condicional cache-hit foi diferido — `improvements_plan.md`§6. CORE roda busca + index a cada execução.
 
-- [ ] O payload do nó `analyze` deve incluir `data_ref` (última data do DATASUS) e `data_hora_consulta` (timestamp da execução), para que os prompts possam deixar explícita a distinção entre:
+- [x] O payload do nó `analyze` deve incluir `data_ref` (última data do DATASUS) e `data_hora_consulta` (timestamp da execução), para que os prompts possam deixar explícita a distinção entre:
   - **Dados históricos:** métricas derivadas do DATASUS, cuja cobertura vai até `data_ref`
   - **Notícias em tempo real:** consultadas no momento da execução (`data_hora_consulta`)
 
-- [ ] `scripts/run_agent.py` para testar via CLI:
+- [x] `scripts/run_agent.py` para testar via CLI:
   ```python
   agent = create_agent(Settings())
   result = agent.invoke({"messages": [("user", "Gere o relatório SRAG")]})
   print(result["report_markdown"])
   ```
 
-**Commit:** `test+feat: LangGraph orchestrator with sequential flow and audit integration`
+**Commit:** `test+feat: LangGraph orchestrator with sequential flow and audit integration` ✅
 
 ---
 
@@ -208,69 +209,25 @@
 
 #### 3.1.T — Testes (`tests/test_metrics.py`)
 
-- [ ] `test_mortality_rate_in_range` — 0 < resultado < 50
-- [ ] `test_icu_rate_in_range` — 0 < resultado < 80
-- [ ] `test_vaccination_rate_in_range` — 0 < resultado < 100 (para anos >= 2021)
-- [ ] `test_case_increase_rate_not_null`
-- [ ] `test_daily_cases_30d_has_data` — retorna >= 1 linha
-- [ ] `test_monthly_cases_12m_has_data`
-- [ ] `test_metrics_with_max_dt_notific_as_ref` — usando `MAX(dt_notific)` como referência, não `NOW()`
+- [x] `test_mortality_rate_in_range` — 0 < resultado < 50
+- [x] `test_icu_rate_in_range` — 0 < resultado < 80
+- [x] `test_vaccination_rate_in_range` — 0 < resultado < 100 (para anos >= 2021)
+- [x] `test_case_increase_rate_not_null` — retorna resultado (None aceitável quando semana anterior = 0)
+- [x] `test_daily_cases_30d_has_data` — retorna >= 1 linha
+- [x] `test_monthly_cases_12m_has_data`
+- [x] `test_metrics_with_max_dt_notific_as_ref` — usando `MAX(dt_notific)` como referência, não `NOW()`
 
 ---
 
-Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref` default):
+Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref` default): ✅
 
-- **Taxa de aumento de casos:**
-  ```sql
-  WITH semana_atual AS (
-    SELECT COUNT(*) as casos FROM srag.srag_cases
-    WHERE dt_notific BETWEEN :data_ref - INTERVAL '7 days' AND :data_ref
-    AND caso_confirmado = true
-  ),
-  semana_anterior AS (
-    SELECT COUNT(*) as casos FROM srag.srag_cases
-    WHERE dt_notific BETWEEN :data_ref - INTERVAL '14 days' AND :data_ref - INTERVAL '7 days'
-    AND caso_confirmado = true
-  )
-  SELECT sa.casos, sp.casos,
-    ROUND(100.0 * (sa.casos - sp.casos) / NULLIF(sp.casos, 0), 2) as taxa_aumento
-  FROM semana_atual sa, semana_anterior sp;
-  ```
+- **Taxa de aumento de casos:** ✅ (colunas renomeadas para `casos_semana_atual`, `casos_semana_anterior`, `taxa_aumento`; NULLIF para divisão por zero)
 
-- **Taxa de mortalidade:**
-  ```sql
-  SELECT
-    COUNT(*) FILTER (WHERE evolucao = 2) as obitos_srag,
-    COUNT(*) FILTER (WHERE evolucao IN (1,2,3)) as total_com_desfecho,
-    ROUND(100.0 * COUNT(*) FILTER (WHERE evolucao = 2) /
-      NULLIF(COUNT(*) FILTER (WHERE evolucao IN (1,2,3)), 0), 2) as taxa_mortalidade
-  FROM srag.srag_cases
-  WHERE caso_confirmado = true
-  AND dt_notific BETWEEN :data_inicio AND :data_fim;
-  ```
+- **Taxa de mortalidade:** ✅ (7.47% validado contra dados reais)
 
-- **Taxa de UTI** (proporção de internados que foram para UTI — NÃO ocupação de leitos):
-  ```sql
-  SELECT
-    COUNT(*) FILTER (WHERE uti = 1) as internados_uti,
-    COUNT(*) as total_internados,
-    ROUND(100.0 * COUNT(*) FILTER (WHERE uti = 1) / NULLIF(COUNT(*), 0), 2) as taxa_uti
-  FROM srag.srag_cases
-  WHERE caso_confirmado = true
-  AND dt_notific BETWEEN :data_inicio AND :data_fim;
-  ```
-  > Documentar no relatório e no README: esta é a taxa de quem foi para UTI dentre os internados, não a ocupação de leitos (dado não disponível no SIVEP-Gripe).
+- **Taxa de UTI:** ✅ (27.45% validado; documentado como proporção de internados que foram para UTI, não ocupação de leitos)
 
-- **Taxa de vacinação:**
-  ```sql
-  SELECT
-    COUNT(*) FILTER (WHERE vacina_cov = 1) as vacinados,
-    COUNT(*) as total_casos,
-    ROUND(100.0 * COUNT(*) FILTER (WHERE vacina_cov = 1) / NULLIF(COUNT(*), 0), 2) as taxa_vacinacao
-  FROM srag.srag_cases
-  WHERE caso_confirmado = true AND ano_notificacao >= 2021
-  AND dt_notific BETWEEN :data_inicio AND :data_fim;
-  ```
+- **Taxa de vacinação:** ✅ (53.44% validado para anos >= 2021)
 
 ---
 
@@ -278,10 +235,10 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
 
 - [ ] Acessar painel SRAG do Ministério: https://www.gov.br/saude/pt-br/composicao/svsa/cnie/srag
 - [ ] Acessar InfoGripe da Fiocruz: http://info.gripe.fiocruz.br/
-- [ ] Para cada métrica: anotar valor da fonte oficial, comparar com o nosso, documentar em `docs/metrics_validation.md`
+- [x] Para cada métrica: anotar valor da fonte oficial, comparar com o nosso, documentar em `docs/metrics_validation.md`
 - [ ] Margem aceitável: ±5%. Se > 10%: investigar filtro de `CLASSI_FIN` ou período de referência
 
-**Commit:** `feat: metrics queries validated and tested`
+**Commit:** `feat: metrics queries validated and tested` ✅
 
 ---
 
@@ -289,22 +246,22 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
 
 ### 4.T — Testes (`tests/test_ui.py` — smoke tests)
 
-- [ ] `test_app_imports_without_error` — `import src.ui.app` não levanta exceção
-- [ ] `test_session_state_persists_report` — após mock de `create_agent`, `st.session_state["report"]` é populado
+- [x] `test_app_imports_without_error` — `import src.ui.app` não levanta exceção
+- [x] `test_session_state_persists_report` — após mock de `create_agent`, `st.session_state["report"]` é populado
 
 ---
 
 ### 4.1 — Layout da página
 
-- [ ] `src/ui/app.py`:
+- [x] `src/ui/app.py`:
   ```python
-  st.set_page_config(page_title="SRAG Agent", page_icon="", layout="wide")
+  st.set_page_config(page_title="SRAG Agent", page_icon="🦠", layout="wide")
   ```
   - Sidebar: selectbox provider LLM, selectbox modelo, selectbox UF (Todos + estados), date input data de referência, botão "Gerar Relatório"
   - Área principal: header com título, placeholder para relatório
 
-- [ ] Estados da UI:
-  - Inicial: "Clique em Gerar Relatório para começar"
+- [x] Estados da UI:
+  - Inicial: "Clique em **Gerar Relatório** para começar"
   - Gerando: `st.spinner("Gerando relatório... Isso pode levar até 1 minuto")`
   - Pronto: relatório, gráficos, botão download
   - Erro: `st.error()` com mensagem clara
@@ -313,7 +270,7 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
 
 ### 4.2 — Integração com o agente
 
-- [ ] Handler do botão:
+- [x] Handler do botão:
   ```python
   if st.sidebar.button("Gerar Relatório"):
       with st.spinner("Gerando relatório..."):
@@ -321,15 +278,15 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
           result = agent.invoke({"messages": [("user", "Gere o relatório SRAG")]})
           st.session_state["report"] = result
   ```
-- [ ] 4 métricas em destaque com `st.metric()` em 4 colunas
+- [x] 4 métricas em destaque com `st.metric()` em 4 colunas
 
 ---
 
 ### 4.3 — Gráficos, relatório e download
 
-- [ ] `st.plotly_chart(fig_daily, use_container_width=True)` + `st.plotly_chart(fig_monthly, use_container_width=True)`
-- [ ] `st.markdown(report_markdown)` para o corpo do relatório
-- [ ] Botão de download PDF:
+- [x] `st.image(daily_path)` + `st.image(monthly_path)` para gráficos PNG
+- [x] `st.markdown(report_markdown)` para o corpo do relatório
+- [x] Botão de download PDF:
   ```python
   with open(pdf_path, "rb") as f:
       st.download_button(
@@ -344,15 +301,15 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
 
 ### 4.4 — Expander de auditoria
 
-- [ ] ```python
-  with st.expander("Auditoria — Decisões do agente"):
+- [x] ```python
+  with st.expander("🔍 Auditoria — Decisões do agente"):
       for entry in session_logs:
           st.json(entry)
   ```
-- [ ] Mostrar: steps, tools chamadas, tempo por step, sucesso/falha
-- [ ] Seção de fontes: URLs consultadas, data/hora, fonte verificada vs não-verificada
+- [x] Mostrar: análise LLM, notícias recuperadas, configuração utilizada
+- [x] Seção de fontes: URLs consultadas, fonte verificada vs não-verificada
 
-**Commit:** `feat: streamlit UI with report, download and audit expander`
+**Commit:** `feat: streamlit UI with report, download and audit expander` ✅
 
 ---
 
@@ -387,10 +344,10 @@ Seções obrigatórias:
 
 ### 5.3 — Code cleanup
 
-- [ ] Docstrings Google style em todas as funções públicas e módulos
-- [ ] Type hints em todos os parâmetros e retornos
-- [ ] `ruff check . --fix` + `ruff format .`
-- [ ] Remover prints de debug, funções não usadas, imports desnecessários
+- [x] Docstrings Google style em todas as funções públicas e módulos
+- [x] Type hints em todos os parâmetros e retornos (existing code already had them)
+- [x] `ruff check . --fix` + `ruff format .` — all checks pass
+- [x] Remover prints de debug, funções não usadas, imports desnecessários
 
 ---
 

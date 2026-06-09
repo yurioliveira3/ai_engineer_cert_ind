@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential libpq-dev && \
+    apt-get install -y --no-install-recommends build-essential libpq-dev curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -13,5 +13,10 @@ COPY src/ src/
 COPY scripts/ scripts/
 
 ENV HF_HOME=/data/hf_cache
+
+RUN adduser --disabled-password --gecos "" appuser
+USER appuser
+
+HEALTHCHECK CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
 CMD ["streamlit", "run", "src/ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]

@@ -5,10 +5,18 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
+    """SQLAlchemy declarative base class for SRAG database models."""
+
     pass
 
 
 class SragCase(Base):
+    """ORM model representing a SRAG case record.
+
+    Maps to the ``srag.srag_cases`` table and stores notification dates,
+    evolution, ICU admission, vaccination, and demographic fields.
+    """
+
     __tablename__ = "srag_cases"
     __table_args__ = (
         Index("ix_srag_cases_dt_notific_caso_confirmado", "dt_notific", "caso_confirmado"),
