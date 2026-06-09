@@ -1,8 +1,10 @@
 """SRAG Agent Orchestrator: LangGraph StateGraph with sequential node execution."""
 
-# SPEC_DEVIATION: Nodes call audit_logger.log_decision() directly instead of @audit_step decorator.
-# Reason: LangGraph node functions receive state + settings + audit_logger as params, making the
-# decorator pattern awkward. Direct calls give explicit control over step/tool/input/output per node.
+# SPEC_DEVIATION: Nodes call audit_logger.log_decision() directly
+# instead of @audit_step decorator.
+# Reason: LangGraph nodes receive (state, settings, audit_logger) as params,
+# making the decorator awkward. Direct calls give explicit control over
+# step/tool/input/output per node.
 
 from __future__ import annotations
 
@@ -325,6 +327,8 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
 
 def _parse_metric_result(result_text: str) -> dict:
     """Parse the string output from execute_metric_query into a dict."""
+    import math
+
     result = {}
     for line in result_text.strip().split("\n"):
         if "Execution time" in line or line.startswith("Metric:"):
@@ -333,8 +337,14 @@ def _parse_metric_result(result_text: str) -> dict:
             key, _, val = line.strip().partition(":")
             key = key.strip()
             val = val.strip()
+            if val in ("None", "NaN", "null", ""):
+                result[key] = None
+                continue
             try:
                 val = float(val)
+                if math.isnan(val) or math.isinf(val):
+                    result[key] = None
+                    continue
             except ValueError:
                 pass
             result[key] = val

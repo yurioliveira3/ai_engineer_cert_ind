@@ -15,7 +15,7 @@ semana_anterior AS (
     WHERE dt_notific BETWEEN :data_ref - INTERVAL '14 days' AND :data_ref - INTERVAL '7 days'
     AND caso_confirmado = true
 )
-SELECT sa.casos, sp.casos,
+SELECT sa.casos as casos_semana_atual, sp.casos as casos_semana_anterior,
     ROUND(100.0 * (sa.casos - sp.casos) / NULLIF(sp.casos, 0), 2) as taxa_aumento
 FROM semana_atual sa, semana_anterior sp
 """
