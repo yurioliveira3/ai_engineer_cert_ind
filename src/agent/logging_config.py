@@ -37,7 +37,7 @@ def setup_logger(name: str = "srag_agent", level: int = logging.INFO) -> logging
     logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(level)
     console_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
     logger.addHandler(console_handler)
 

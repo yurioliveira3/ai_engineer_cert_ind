@@ -93,7 +93,6 @@ def safe_execute(
     query: str,
     params: dict,
     engine,
-    timeout: int = 10,
 ) -> tuple[pd.DataFrame | str, int]:
     """Execute a SQL query safely with guardrails.
 

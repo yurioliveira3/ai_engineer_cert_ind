@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from langchain_community.tools import DuckDuckGoSearchResults
+
+from src.config import Settings
+
+if TYPE_CHECKING:
+    from src.data.embeddings import NewsEmbeddingsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +76,8 @@ def _make_repo(settings):
 def search_and_index_news(
     query: str,
     max_results: int = 5,
-    repo=None,
-    settings=None,
+    repo: NewsEmbeddingsRepository | None = None,
+    settings: Settings | None = None,
 ) -> list[dict]:
     """Search DuckDuckGo for SRAG-related news and index results in pgvector.
 
@@ -108,8 +114,8 @@ def search_and_index_news(
 def semantic_search_news(
     query: str,
     k: int = 3,
-    repo=None,
-    settings=None,
+    repo: NewsEmbeddingsRepository | None = None,
+    settings: Settings | None = None,
 ) -> list[dict]:
     """Search indexed news using pgvector similarity search.
 
@@ -123,8 +129,6 @@ def semantic_search_news(
         List of dicts with matching news articles.
     """
     if repo is None:
-        from src.config import Settings
-
         effective_settings = settings or Settings()
         repo = _make_repo(effective_settings)
 

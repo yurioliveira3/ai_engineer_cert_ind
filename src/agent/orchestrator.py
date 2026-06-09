@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from typing import Annotated, TypedDict
 
@@ -66,12 +67,13 @@ def calculate_metrics(
             logger.warning(f"Metric {metric_name} failed: {e}")
             metrics[metric_name] = {"error": str(e)[:200]}
 
-    # Get data_ref from the first successful metric
-    data_ref = ""
-    for key, val in metrics.items():
-        if isinstance(val, dict) and "data_ref" not in val:
-            continue
-    metrics["data_ref"] = data_ref
+    # Extract data_ref from the first metric result that has it
+    for metric_value in metrics.values():
+        if isinstance(metric_value, dict) and "data_ref" in metric_value:
+            metrics["data_ref"] = metric_value["data_ref"]
+            break
+    else:
+        metrics["data_ref"] = ""
 
     # Validate metric ranges
     validated = validate_metrics(metrics)
@@ -327,8 +329,6 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
 
 def _parse_metric_result(result_text: str) -> dict:
     """Parse the string output from execute_metric_query into a dict."""
-    import math
-
     result = {}
     for line in result_text.strip().split("\n"):
         if "Execution time" in line or line.startswith("Metric:"):
