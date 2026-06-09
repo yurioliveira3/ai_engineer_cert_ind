@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestSearchReturnsResults:
     def test_search_returns_results(self):
@@ -115,6 +117,15 @@ class TestSemanticSearchReturnsTopk:
 
         assert len(results) == 3
         mock_repo.similarity_search.assert_called_once_with("dengue", 3)
+
+
+class TestSearchRateLimit:
+    def test_search_rate_limit_respected(self):
+        """More than 5 results per call raises ValueError."""
+        from src.agent.tools.news_tool import search_and_index_news
+
+        with pytest.raises(ValueError, match="max_results"):
+            search_and_index_news("query1", max_results=10)
 
 
 class TestSemanticSearchWithoutRepoCreatesDefault:

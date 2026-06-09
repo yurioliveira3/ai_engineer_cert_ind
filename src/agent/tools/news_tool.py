@@ -72,6 +72,23 @@ def search_and_index_news(
     repo=None,
     settings=None,
 ) -> list[dict]:
+    """Search DuckDuckGo for SRAG-related news and index results in pgvector.
+
+    Args:
+        query: Search query string.
+        max_results: Maximum number of results to return (1-5).
+        repo: Optional NewsEmbeddingsRepository instance.
+        settings: Optional Settings instance.
+
+    Returns:
+        List of dicts with title, url, snippet, source, query_used.
+
+    Raises:
+        ValueError: If max_results exceeds the allowed maximum.
+    """
+    if max_results > 5:
+        raise ValueError(f"max_results={max_results} exceeds maximum of 5")
+
     ddg = DuckDuckGoSearchResults(max_results=max_results, region="br-pt")
     raw = ddg.invoke(query)
 
