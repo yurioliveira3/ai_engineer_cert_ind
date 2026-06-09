@@ -20,7 +20,8 @@ Cada etapa é auditada com `AgentAuditLogger`, e guardrails protegem contra inje
 │                                                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
 │  │  SQL Tool     │  │  News Tool   │  │  Chart Tool  │      │
-│  │  (6 metrics)  │  │  (DuckDuckGo)│  │  (Plotly)    │      │
+│  │ (4 métricas + │  │  (DuckDuckGo)│  │  (Plotly)    │      │
+│  │  2 temporais) │  │              │  │              │      │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
 │         │                 │                   │             │
 │  ┌──────┴───────┐  ┌──────┴───────┐  ┌──────┴───────┐      │
@@ -36,7 +37,7 @@ Cada etapa é auditada com `AgentAuditLogger`, e guardrails protegem contra inje
 │                                                             │
 │  ┌──────────────────────────────────────────────────┐       │
 │  │              Guardrails & Logging                │       │
-│  │  • SQL safety (keywords, timeout, LIMIT)         │       │
+│  │  • SQL safety (keywords, LIMIT)                  │       │
 │  │  • Input validation (injection detection)        │       │
 │  │  • Output PII filter (CPF, phone, email)         │       │
 │  │  • Metric range warnings                        │       │
@@ -57,7 +58,7 @@ Cada etapa é auditada com `AgentAuditLogger`, e guardrails protegem contra inje
 | DuckDuckGo Search | — | Busca de notícias | Gratuito, sem API key |
 | Plotly + kaleido | 5.0+ | Gráficos | Interativo no Streamlit, estático no PDF |
 | fpdf2 | — | Geração de PDF | Leve, suporte UTF-8 |
-| Streamlit | 1.30+ | Interface web | Planejado para Fase 4 |
+| Streamlit | 1.30+ | Interface web | Dashboard com métricas, gráficos, relatório e auditoria |
 | SQLAlchemy | 2.0+ | ORM e queries | Conexão com PostgreSQL |
 | Pydantic | 2.0+ | Configuração | Validação de settings |
 
@@ -81,7 +82,7 @@ cp .env.example .env
 # Edite .env e adicione sua LLM_API_KEY
 
 # 3. Suba o PostgreSQL com pgvector
-docker compose up -d db
+docker compose up -d srag-db
 
 # 4. Instale as dependências
 pip install -e .
@@ -100,13 +101,23 @@ python scripts/test_llm.py
 
 # 9. Execute o agente via CLI
 python scripts/run_agent.py
+
+# 10. Ou inicie a interface web
+streamlit run src/ui/app.py
+
+# Docker (opcional)
+docker compose up -d
 ```
 
 ### Configuração (.env)
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
-| `DATABASE_URL` | `postgresql://srag_app:srag_pass@db:5432/srag` | URL do PostgreSQL |
+| `POSTGRES_USER` | `srag_app` | Usuário do PostgreSQL |
+| `POSTGRES_PASSWORD` | `srag_pass` | Senha do PostgreSQL |
+| `POSTGRES_DB` | `srag` | Nome do banco |
+| `POSTGRES_PORT` | `5433` | Porta local para acesso ao banco |
+| `DATABASE_URL` | construído dinamicamente | URL completa do PostgreSQL (usa as variáveis acima) |
 | `LLM_PROVIDER` | `gemini` | Provider LLM (gemini, openrouter, groq, ollama) |
 | `LLM_MODEL` | `gemini-2.5-flash` | Modelo LLM |
 | `LLM_API_KEY` | — | Chave de API do provider |
@@ -115,6 +126,7 @@ python scripts/run_agent.py
 | `EMBEDDING_MODEL` | `BAAI/bge-large-en-v1.5` | Modelo de embeddings |
 | `EMBEDDING_DIM` | `1024` | Dimensão dos embeddings |
 | `LOG_LEVEL` | `INFO` | Nível de log |
+| `NEWS_MAX_SEARCHES` | `3` | Lido pelo Settings, mas o orquestrador usa `max_results=5` fixo no `search_news_step` |
 
 ## Dados
 
@@ -154,7 +166,7 @@ Veja [docs/data_privacy.md](docs/data_privacy.md) para detalhes sobre:
 
 O agente implementa 4 camadas de proteção:
 
-1. **Validação de input SQL**: palavras-chave destrutivas bloqueadas (DROP, DELETE, etc.), multi-statement bloqueado, SELECT * sem WHERE bloqueado, timeout de 10s, LIMIT automático
+1. **Validação de input SQL**: palavras-chave destrutivas bloqueadas (DROP, DELETE, etc.), multi-statement bloqueado, SELECT * sem WHERE bloqueado, LIMIT automático (padrão 1000)
 2. **Validação de input do usuário**: limite de 1000 caracteres, detecção de injeção de prompt (7 padrões em PT e EN), sanitização de caracteres especiais
 3. **Validação de métricas**: alertas para mortalidade > 50%, UTI > 100%, vacinação > 100%, aumento > 500%
 4. **Filtro de PII no output**: mascaramento de CPF (XXX.XXX.XXX-XX), telefone e email
@@ -167,17 +179,20 @@ Todas as queries SQL são logadas em `audit.query_history` com hash SHA-256. Cad
 
 ```bash
 # Testes unitários (sem banco/CVS reais)
-pytest tests/ -v -k "not integration"
+pytest tests/ -v -m "not integration"
 
 # Testes de integração (requer banco populado e CSV em data/raw/)
 pytest tests/ -v -m integration
+
+# Todos os testes
+pytest tests/ -v
 
 # Lint e formatação
 ruff check src/ tests/ scripts/
 ruff format src/ tests/ scripts/
 ```
 
-**Resultados atuais:** 76 testes passando, 0 erros, ruff limpo.
+**Resultados atuais:** 109 testes unitários + 9 de integração = 118 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
 
 ## Estrutura do Projeto
 
@@ -207,20 +222,20 @@ srag-agent/
 │   ├── agent/
 │   │   ├── orchestrator.py    # LangGraph StateGraph (SRAGAgent)
 │   │   ├── guardrails.py      # SQL safety, input/output validation, PII filter
-│   │   ├── logging_config.py  # AgentAuditLogger, @audit_step, setup_logger
+│   │   ├── logging_config.py  # AgentAuditLogger, setup_logger, audit_step (definido, não usado pelo orquestrador)
 │   │   ├── prompts/
 │   │   │   ├── __init__.py    # load_prompt, render_prompt (SHA-256)
 │   │   │   ├── system.txt     # Prompt do sistema
 │   │   │   ├── analyze_metrics.txt  # Prompt de análise
 │   │   │   └── news_query_gen.txt   # Prompt de geração de queries
 │   │   └── tools/
-│   │       ├── sql_tool.py     # execute_metric_query (6 métricas)
+│   │       ├── sql_tool.py     # execute_metric_query (4 métricas analíticas + 2 temporais p/ gráficos)
 │   │       ├── news_tool.py    # search_and_index_news, semantic_search_news
 │   │       ├── chart_tool.py   # generate_daily/monthly_cases_chart
 │   │       └── report_tool.py  # generate_report (markdown + PDF)
 │   └── ui/
-│       └── app.py             # Streamlit (placeholder — Fase 4)
-├── tests/                      # 12 arquivos de teste, 76 testes
+│       └── app.py             # Dashboard Streamlit com métricas, gráficos, download PDF, auditoria
+├── tests/                      # 12 arquivos de teste, 118 testes
 ├── scripts/
 │   ├── download_srag_data.py  # Download CSVs do DATASUS S3
 │   ├── seed_db.py             # Carga no PostgreSQL
@@ -230,7 +245,7 @@ srag-agent/
 │   └── run_agent.py           # CLI runner do agente
 └── docs/
     ├── data_privacy.md         # Decisões PII/LGPD
-    └── ideas/                  # Planos de implementação
+    └── metrics_validation.md   # Validação cruzada das métricas (Fase 3)
 ```
 
 ## Melhorias Futuras
@@ -241,8 +256,6 @@ Itens planejados para implementação posterior (detalhes em `docs/ideas/improve
 |-----------|------|-----------|
 | Alta | Cache de buscas | Evitar buscar notícias repetidas em execuções seguidas |
 | Alta | Fallback Tavily | Busca de notícias quando DuckDuckGo falha |
-| Alta | Validação cruzada | Comparar métricas com painéis do Ministério da Saúde |
-| Média | UI Streamlit | Interface web com métricas, gráficos, relatório e audit |
 | Média | Multi-agente | Arquitetura com especialistas (epidemiologista, vacinólogo) |
 | Média | Embeddings multilingual | Avaliar BAAI/bge-m3 para melhor busca em PT-BR |
 | Baixa | Download automático | Agendamento de atualização dos dados SRAG |
