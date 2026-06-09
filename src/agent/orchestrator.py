@@ -1,5 +1,9 @@
 """SRAG Agent Orchestrator: LangGraph StateGraph with sequential node execution."""
 
+# SPEC_DEVIATION: Nodes call audit_logger.log_decision() directly instead of @audit_step decorator.
+# Reason: LangGraph node functions receive state + settings + audit_logger as params, making the
+# decorator pattern awkward. Direct calls give explicit control over step/tool/input/output per node.
+
 from __future__ import annotations
 
 import logging
