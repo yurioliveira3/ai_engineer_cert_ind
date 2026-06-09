@@ -160,7 +160,7 @@ def main():
                 return
 
     # ─── Display results ──────────────────────────────────────────────────
-    if "error" in st.session_state and st.session_state["error"]:
+    if st.session_state.get("error"):
         st.error(f"❌ Erro: {st.session_state['error']}")
         return
 

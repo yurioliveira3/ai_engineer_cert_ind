@@ -34,7 +34,7 @@ class TestGenerateDailyChartReturnsPath:
     def test_returns_path_to_existing_png(self, tmp_path):
         data = _make_daily_data()
         with patch.object(go.Figure, "write_image", _mock_write_image):
-            path, fig = generate_daily_cases_chart(data, output_dir=str(tmp_path))
+            path, _fig = generate_daily_cases_chart(data, output_dir=str(tmp_path))
         assert os.path.basename(path) == "daily_cases.png"
         assert os.path.exists(path)
 
@@ -43,7 +43,7 @@ class TestGenerateMonthlyChartReturnsPath:
     def test_returns_path_to_existing_png(self, tmp_path):
         data = _make_monthly_data()
         with patch.object(go.Figure, "write_image", _mock_write_image):
-            path, fig = generate_monthly_cases_chart(data, output_dir=str(tmp_path))
+            path, _fig = generate_monthly_cases_chart(data, output_dir=str(tmp_path))
         assert os.path.basename(path) == "monthly_cases.png"
         assert os.path.exists(path)
 
@@ -70,7 +70,7 @@ class TestPngExportHasContent:
     def test_generated_png_has_content(self, tmp_path):
         try:
             data = _make_daily_data(25)
-            path, fig = generate_daily_cases_chart(data, output_dir=str(tmp_path))
+            path, _fig = generate_daily_cases_chart(data, output_dir=str(tmp_path))
             assert os.path.getsize(path) > 1024
         except Exception as e:
             if "kaleido" in str(e).lower():

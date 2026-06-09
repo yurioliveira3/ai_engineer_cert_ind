@@ -344,10 +344,10 @@ Seções obrigatórias:
 
 ### 5.3 — Code cleanup
 
-- [ ] Docstrings Google style em todas as funções públicas e módulos
-- [ ] Type hints em todos os parâmetros e retornos
-- [ ] `ruff check . --fix` + `ruff format .`
-- [ ] Remover prints de debug, funções não usadas, imports desnecessários
+- [x] Docstrings Google style em todas as funções públicas e módulos
+- [x] Type hints em todos os parâmetros e retornos (existing code already had them)
+- [x] `ruff check . --fix` + `ruff format .` — all checks pass
+- [x] Remover prints de debug, funções não usadas, imports desnecessários
 
 ---
 

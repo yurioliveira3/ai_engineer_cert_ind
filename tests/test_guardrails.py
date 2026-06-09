@@ -58,7 +58,7 @@ class TestSQLSafetyValidation:
 
     def test_sql_injection_blocked(self):
         injection = "; DROP TABLE srag.srag_cases; --"
-        is_safe, reason = validate_sql_safety(injection)
+        is_safe, _reason = validate_sql_safety(injection)
         assert not is_safe
 
 
@@ -233,7 +233,7 @@ class TestSqlSafetyEdgeCases:
         """SELECT * FROM table WHERE ... should be allowed."""
         from src.agent.guardrails import validate_sql_safety
 
-        is_safe, reason = validate_sql_safety(
+        is_safe, _reason = validate_sql_safety(
             "SELECT * FROM srag.srag_cases WHERE caso_confirmado = true LIMIT 10"
         )
         assert is_safe

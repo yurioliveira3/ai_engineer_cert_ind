@@ -53,9 +53,8 @@ def validate_sql_safety(query: str) -> tuple[bool, str]:
         return False, "Multi-statement queries are not allowed"
 
     # Check for SELECT * without WHERE
-    if re.search(r"SELECT\s+\*\s+FROM", query_upper, re.IGNORECASE):
-        if "WHERE" not in query_upper:
-            return False, "SELECT * without WHERE clause is not allowed"
+    if re.search(r"SELECT\s+\*\s+FROM", query_upper, re.IGNORECASE) and "WHERE" not in query_upper:
+        return False, "SELECT * without WHERE clause is not allowed"
 
     return True, "OK"
 

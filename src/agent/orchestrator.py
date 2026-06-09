@@ -321,7 +321,7 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
             success=False,
         )
         return {
-            "report_markdown": f"Erro ao gerar relatório: {str(e)}",
+            "report_markdown": f"Erro ao gerar relatório: {e!s}",
             "report_pdf_path": "",
             "error": str(e),
         }
