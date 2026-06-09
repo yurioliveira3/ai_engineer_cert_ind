@@ -153,3 +153,89 @@ def _log_audit(
             conn.commit()
     except Exception as e:
         logger.warning(f"Failed to log audit: {e}")
+
+
+PROMPT_INJECTION_PATTERNS = [
+    r"ignore\s+suas?\s+instruções?\s+anteriores",
+    r"ignore\s+your\s+previous\s+instructions",
+    r"disregard\s+all\s+previous",
+    r"esqueça\s+tudo",
+    r"you\s+are\s+now",
+    r"act\s+as\s+if\s+you\s+are",
+    r"system\s*:",
+]
+
+_MAX_INPUT_LENGTH = 1000
+
+
+def validate_user_input(text: str) -> str:
+    """Validate and sanitize user input for prompt injection and length."""
+    if len(text) > _MAX_INPUT_LENGTH:
+        raise ValueError(f"Input exceeds maximum length of {_MAX_INPUT_LENGTH} characters")
+
+    text = text.replace("\x00", "")
+
+    lower = text.lower()
+    for pattern in PROMPT_INJECTION_PATTERNS:
+        if re.search(pattern, lower):
+            raise ValueError("Potential prompt injection detected")
+
+    return text
+
+
+def validate_metrics(metrics: dict) -> dict:
+    """Validate metric values and add warnings for suspicious ranges."""
+    result = dict(metrics)
+    warnings = []
+
+    mortality = metrics.get("mortality_rate")
+    if mortality is not None and mortality > 0.5:
+        warnings.append(f"Mortality rate {mortality:.0%} exceeds 50% threshold")
+
+    icu_rate = metrics.get("icu_rate")
+    if icu_rate is not None and icu_rate > 1.0:
+        warnings.append(f"ICU rate {icu_rate:.0%} exceeds 100% threshold")
+
+    vaccination = metrics.get("vaccination_rate")
+    if vaccination is not None and vaccination > 1.0:
+        warnings.append(f"Vaccination rate {vaccination:.0%} exceeds 100% threshold")
+
+    case_increase = metrics.get("case_increase")
+    if case_increase is not None and case_increase > 5.0:
+        warnings.append(f"Case increase {case_increase:.0%} exceeds 500% threshold")
+
+    if warnings:
+        result["warnings"] = warnings
+    return result
+
+
+_CPF_PATTERN = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
+_CPF_RAW_PATTERN = re.compile(r"\b(\d{11})\b")
+_PHONE_PATTERN = re.compile(r"\(\d{2}\)\s*\d{4,5}-\d{4}")
+_EMAIL_PATTERN = re.compile(r"\b[\w.-]+@[\w.-]+\.\w{2,}\b")
+
+
+def validate_output_pii(text: str) -> str:
+    """Mask PII patterns (CPF, phone, email) in output text. Does NOT block."""
+    found_pii = False
+
+    if _CPF_PATTERN.search(text):
+        text = _CPF_PATTERN.sub("XXX.XXX.XXX-XX", text)
+        found_pii = True
+
+    if _CPF_RAW_PATTERN.search(text):
+        text = _CPF_RAW_PATTERN.sub("XXXXXXXXXXX", text)
+        found_pii = True
+
+    if _PHONE_PATTERN.search(text):
+        text = _PHONE_PATTERN.sub("(XX) XXXXX-XXXX", text)
+        found_pii = True
+
+    if _EMAIL_PATTERN.search(text):
+        text = _EMAIL_PATTERN.sub("[REDACTED_EMAIL]", text)
+        found_pii = True
+
+    if found_pii:
+        logger.warning("PII detected and masked in output")
+
+    return text
