@@ -1,0 +1,23 @@
+-- 03_app_user.sql
+-- Create application role with limited privileges (no DDL)
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'srag_app') THEN
+        CREATE ROLE srag_app LOGIN PASSWORD 'srag_pass';
+    END IF;
+END
+$$;
+
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA srag TO srag_app;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA news TO srag_app;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA audit TO srag_app;
+
+GRANT USAGE ON SCHEMA srag TO srag_app;
+GRANT USAGE ON SCHEMA news TO srag_app;
+GRANT USAGE ON SCHEMA audit TO srag_app;
+
+-- Ensure future tables also get the same grants
+ALTER DEFAULT PRIVILEGES IN SCHEMA srag GRANT SELECT, INSERT, UPDATE ON TABLES TO srag_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA news GRANT SELECT, INSERT, UPDATE ON TABLES TO srag_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA audit GRANT SELECT, INSERT, UPDATE ON TABLES TO srag_app;

@@ -28,11 +28,9 @@ data/charts/
 data/reports/
 data/logs/
 
-# Outputs
-*.pdf
-
 # Models cache (sentence-transformers)
 .cache/
+data/hf_cache/
 
 # IDE
 .vscode/
@@ -50,3 +48,6 @@ Thumbs.db
 
 # Docker
 pgdata/
+
+# Generated
+*.pdf
