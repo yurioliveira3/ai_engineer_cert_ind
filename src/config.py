@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     llm_model: str = "gemini-2.5-flash"
     embedding_model: str = "BAAI/bge-large-en-v1.5"
     embedding_dim: int = 1024
+    news_max_searches: int = 3
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
