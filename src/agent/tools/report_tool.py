@@ -40,6 +40,8 @@ def _sanitize_for_latin1(text: str) -> str:
 
 
 class _SRAGReport(FPDF):
+    """PDF report builder for SRAG analysis with Latin-1 fallback support."""
+
     def __init__(self):
         super().__init__(orientation="P", unit="mm", format="A4")
         self.alias_nb_pages()
@@ -58,6 +60,7 @@ class _SRAGReport(FPDF):
         return text
 
     def header(self):
+        """Render the report header with title on every page."""
         if self._font_loaded:
             self.set_font("DejaVu", "", 14)
         else:
@@ -66,6 +69,7 @@ class _SRAGReport(FPDF):
         self.ln(5)
 
     def footer(self):
+        """Render the report footer with timestamp and page number on every page."""
         self.set_y(-15)
         if self._font_loaded:
             self.set_font("DejaVu", "", 8)
@@ -82,6 +86,11 @@ class _SRAGReport(FPDF):
             self.set_font("Helvetica", "", size)
 
     def add_metrics(self, metrics: dict):
+        """Add a metrics section to the PDF.
+
+        Args:
+            metrics: Dict mapping metric keys to numeric values.
+        """
         self._use_font(11)
         self.cell(0, 8, self._t("Métricas"), new_x="LMARGIN", new_y="NEXT")
         self.ln(2)
@@ -92,6 +101,11 @@ class _SRAGReport(FPDF):
         self.ln(4)
 
     def add_analysis(self, analysis: str):
+        """Add an executive summary section to the PDF.
+
+        Args:
+            analysis: Text content of the executive summary.
+        """
         self._use_font(11)
         self.cell(0, 8, self._t("Resumo Executivo"), new_x="LMARGIN", new_y="NEXT")
         self.ln(2)
@@ -100,6 +114,11 @@ class _SRAGReport(FPDF):
         self.ln(4)
 
     def add_news(self, news: list[dict]):
+        """Add a recent news section to the PDF.
+
+        Args:
+            news: List of dicts with "title" and "source" keys.
+        """
         if not news:
             return
         self._use_font(11)
@@ -113,6 +132,11 @@ class _SRAGReport(FPDF):
         self.ln(4)
 
     def add_data_ref(self, data_ref: str):
+        """Add a data sources reference line to the PDF.
+
+        Args:
+            data_ref: Description or URL of the data sources used.
+        """
         self._use_font(9)
         self.cell(0, 6, self._t(f"Fontes: {data_ref}"), new_x="LMARGIN", new_y="NEXT")
 

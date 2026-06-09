@@ -246,22 +246,22 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
 
 ### 4.T — Testes (`tests/test_ui.py` — smoke tests)
 
-- [ ] `test_app_imports_without_error` — `import src.ui.app` não levanta exceção
-- [ ] `test_session_state_persists_report` — após mock de `create_agent`, `st.session_state["report"]` é populado
+- [x] `test_app_imports_without_error` — `import src.ui.app` não levanta exceção
+- [x] `test_session_state_persists_report` — após mock de `create_agent`, `st.session_state["report"]` é populado
 
 ---
 
 ### 4.1 — Layout da página
 
-- [ ] `src/ui/app.py`:
+- [x] `src/ui/app.py`:
   ```python
-  st.set_page_config(page_title="SRAG Agent", page_icon="", layout="wide")
+  st.set_page_config(page_title="SRAG Agent", page_icon="🦠", layout="wide")
   ```
   - Sidebar: selectbox provider LLM, selectbox modelo, selectbox UF (Todos + estados), date input data de referência, botão "Gerar Relatório"
   - Área principal: header com título, placeholder para relatório
 
-- [ ] Estados da UI:
-  - Inicial: "Clique em Gerar Relatório para começar"
+- [x] Estados da UI:
+  - Inicial: "Clique em **Gerar Relatório** para começar"
   - Gerando: `st.spinner("Gerando relatório... Isso pode levar até 1 minuto")`
   - Pronto: relatório, gráficos, botão download
   - Erro: `st.error()` com mensagem clara
@@ -270,7 +270,7 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
 
 ### 4.2 — Integração com o agente
 
-- [ ] Handler do botão:
+- [x] Handler do botão:
   ```python
   if st.sidebar.button("Gerar Relatório"):
       with st.spinner("Gerando relatório..."):
@@ -278,15 +278,15 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
           result = agent.invoke({"messages": [("user", "Gere o relatório SRAG")]})
           st.session_state["report"] = result
   ```
-- [ ] 4 métricas em destaque com `st.metric()` em 4 colunas
+- [x] 4 métricas em destaque com `st.metric()` em 4 colunas
 
 ---
 
 ### 4.3 — Gráficos, relatório e download
 
-- [ ] `st.plotly_chart(fig_daily, use_container_width=True)` + `st.plotly_chart(fig_monthly, use_container_width=True)`
-- [ ] `st.markdown(report_markdown)` para o corpo do relatório
-- [ ] Botão de download PDF:
+- [x] `st.image(daily_path)` + `st.image(monthly_path)` para gráficos PNG
+- [x] `st.markdown(report_markdown)` para o corpo do relatório
+- [x] Botão de download PDF:
   ```python
   with open(pdf_path, "rb") as f:
       st.download_button(
@@ -301,15 +301,15 @@ Queries finais em `src/data/queries.py` (usar `MAX(dt_notific)` como `:data_ref`
 
 ### 4.4 — Expander de auditoria
 
-- [ ] ```python
-  with st.expander("Auditoria — Decisões do agente"):
+- [x] ```python
+  with st.expander("🔍 Auditoria — Decisões do agente"):
       for entry in session_logs:
           st.json(entry)
   ```
-- [ ] Mostrar: steps, tools chamadas, tempo por step, sucesso/falha
-- [ ] Seção de fontes: URLs consultadas, data/hora, fonte verificada vs não-verificada
+- [x] Mostrar: análise LLM, notícias recuperadas, configuração utilizada
+- [x] Seção de fontes: URLs consultadas, fonte verificada vs não-verificada
 
-**Commit:** `feat: streamlit UI with report, download and audit expander`
+**Commit:** `feat: streamlit UI with report, download and audit expander` ✅
 
 ---
 

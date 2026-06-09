@@ -4,6 +4,20 @@ import plotly.graph_objects as go
 
 
 def generate_daily_cases_chart(data, output_dir=None, data_ref=None):
+    """Generate a line chart of daily SRAG cases over the last 30 days.
+
+    Args:
+        data: List of dicts, each with keys ``dt_notific`` (date string) and
+            ``casos`` (int) representing daily case counts.
+        output_dir: Directory where the PNG image will be saved. Defaults to
+            ``data/charts``.
+        data_ref: Reference date string annotated at the bottom of the chart.
+            If ``None``, no annotation is added.
+
+    Returns:
+        tuple[str, plotly.graph_objects.Figure]: A tuple containing the
+            filepath of the saved PNG image and the Plotly Figure object.
+    """
     if output_dir is None:
         output_dir = os.path.join("data", "charts")
     os.makedirs(output_dir, exist_ok=True)
@@ -58,6 +72,20 @@ def generate_daily_cases_chart(data, output_dir=None, data_ref=None):
 
 
 def generate_monthly_cases_chart(data, output_dir=None, data_ref=None):
+    """Generate a bar chart of monthly SRAG cases over the last 12 months.
+
+    Args:
+        data: List of dicts, each with keys ``dt_notific`` (date string) and
+            ``casos`` (int) representing monthly case counts.
+        output_dir: Directory where the PNG image will be saved. Defaults to
+            ``data/charts``.
+        data_ref: Reference date string annotated at the bottom of the chart.
+            If ``None``, no annotation is added.
+
+    Returns:
+        tuple[str, plotly.graph_objects.Figure]: A tuple containing the
+            filepath of the saved PNG image and the Plotly Figure object.
+    """
     if output_dir is None:
         output_dir = os.path.join("data", "charts")
     os.makedirs(output_dir, exist_ok=True)

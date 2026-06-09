@@ -111,6 +111,17 @@ def semantic_search_news(
     repo=None,
     settings=None,
 ) -> list[dict]:
+    """Search indexed news using pgvector similarity search.
+
+    Args:
+        query: Search query string to find semantically similar news.
+        k: Number of results to return.
+        repo: Optional NewsEmbeddingsRepository instance.
+        settings: Optional Settings instance used when repo is not provided.
+
+    Returns:
+        List of dicts with matching news articles.
+    """
     if repo is None:
         from src.config import Settings
 
