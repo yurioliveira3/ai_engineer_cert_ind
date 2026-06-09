@@ -295,3 +295,43 @@ class TestOrchestratorFlow:
             # Audit session was started and ended
             mock_audit.start_session.assert_called_once()
             mock_audit.end_session.assert_called_once()
+
+    @patch("src.agent.orchestrator.AgentAuditLogger")
+    @patch("src.agent.orchestrator.safe_invoke")
+    @patch("src.agent.orchestrator.get_chat_model")
+    @patch("src.agent.orchestrator.create_engine")
+    def test_audit_decisions_logged(self, mock_engine_cls, mock_llm, mock_invoke, mock_audit_cls):
+        """log_decision is called 6 times (one per orchestrator node)."""
+        mock_settings = MagicMock()
+        mock_settings.database_url = "postgresql://test:test@localhost:5433/srag"
+        mock_settings.llm_provider = "gemini"
+        mock_settings.llm_model = "gemini-2.5-flash"
+        mock_settings.effective_api_key = "test-key"
+        mock_settings.embedding_model = "BAAI/bge-large-en-v1.5"
+
+        mock_audit = MagicMock()
+        mock_audit.start_session.return_value = "test-uuid-dec"
+        mock_audit_cls.return_value = mock_audit
+        mock_audit_cls.side_effect = lambda **kw: mock_audit
+
+        mock_invoke.return_value = MagicMock(content="Análise.")
+
+        with (
+            patch("src.agent.orchestrator.execute_metric_query") as mock_sql,
+            patch("src.agent.orchestrator.search_and_index_news") as mock_news,
+            patch("src.agent.orchestrator.semantic_search_news") as mock_semantic,
+            patch("src.agent.orchestrator.generate_daily_cases_chart") as mock_daily,
+            patch("src.agent.orchestrator.generate_monthly_cases_chart") as mock_monthly,
+            patch("src.agent.orchestrator.generate_report") as mock_report,
+        ):
+            mock_sql.return_value = "  taxa_mortalidade: 7.75"
+            mock_news.return_value = []
+            mock_semantic.return_value = []
+            mock_daily.return_value = ("/tmp/d.png", MagicMock())
+            mock_monthly.return_value = ("/tmp/m.png", MagicMock())
+            mock_report.return_value = {"markdown": "# Report", "pdf_path": "/tmp/r.pdf"}
+
+            agent = create_agent(settings=mock_settings)
+            agent.invoke({"messages": [("user", "Relatório")]})
+
+            assert mock_audit.log_decision.call_count == 6
