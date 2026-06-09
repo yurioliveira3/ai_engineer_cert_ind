@@ -155,9 +155,11 @@ Veja [docs/data_privacy.md](docs/data_privacy.md) para detalhes sobre:
 O agente implementa 4 camadas de proteção:
 
 1. **Validação de input SQL**: palavras-chave destrutivas bloqueadas (DROP, DELETE, etc.), multi-statement bloqueado, SELECT * sem WHERE bloqueado, timeout de 10s, LIMIT automático
-2. **Validação de input do usuário**: limite de 1000 caracteres, detecção de injeção de prompt (PT e EN), sanitização de caracteres especiais
+2. **Validação de input do usuário**: limite de 1000 caracteres, detecção de injeção de prompt (7 padrões em PT e EN), sanitização de caracteres especiais
 3. **Validação de métricas**: alertas para mortalidade > 50%, UTI > 100%, vacinação > 100%, aumento > 500%
-4. **Filtro de PII no output**: mascaramento de CPF, telefone e email
+4. **Filtro de PII no output**: mascaramento de CPF (XXX.XXX.XXX-XX), telefone e email
+
+**Busca de notícias**: DuckDuckGo com `region="br-pt"`, máximo de 5 resultados por busca, classificação automática de fontes (confiáveis vs. não-verificadas), rate limiting (`max_results > 5` rejeitado).
 
 Todas as queries SQL são logadas em `audit.query_history` com hash SHA-256. Cada execução do agente cria uma sessão auditada com logs de decisão em `audit.agent_decisions` e chamadas LLM em `audit.llm_calls`.
 
@@ -175,7 +177,7 @@ ruff check src/ tests/ scripts/
 ruff format src/ tests/ scripts/
 ```
 
-**Resultados atuais:** 75 testes passando, 0 erros, ruff limpo.
+**Resultados atuais:** 76 testes passando, 0 erros, ruff limpo.
 
 ## Estrutura do Projeto
 
@@ -218,7 +220,7 @@ srag-agent/
 │   │       └── report_tool.py  # generate_report (markdown + PDF)
 │   └── ui/
 │       └── app.py             # Streamlit (placeholder — Fase 4)
-├── tests/                      # 12 arquivos de teste, 75 testes
+├── tests/                      # 12 arquivos de teste, 76 testes
 ├── scripts/
 │   ├── download_srag_data.py  # Download CSVs do DATASUS S3
 │   ├── seed_db.py             # Carga no PostgreSQL
