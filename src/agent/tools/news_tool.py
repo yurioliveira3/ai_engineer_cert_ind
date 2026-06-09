@@ -72,7 +72,7 @@ def search_and_index_news(
     repo=None,
     settings=None,
 ) -> list[dict]:
-    ddg = DuckDuckGoSearchResults(max_results=max_results)
+    ddg = DuckDuckGoSearchResults(max_results=max_results, region="br-pt")
     raw = ddg.invoke(query)
 
     results = _parse_ddg_results(raw, query)

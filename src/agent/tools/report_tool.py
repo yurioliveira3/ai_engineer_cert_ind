@@ -106,7 +106,7 @@ class _SRAGReport(FPDF):
         self.ln(2)
         self._use_font(9)
         for item in news:
-            source_tag = "verificada" if item.get("source") == "trusted" else "nao-verificada"
+            source_tag = "verificada" if item.get("source") == "trusted" else "não-verificada"
             title = item.get("title", "Sem título")
             self.cell(0, 6, self._t(f"  [{source_tag}] {title}"), new_x="LMARGIN", new_y="NEXT")
         self.ln(4)
