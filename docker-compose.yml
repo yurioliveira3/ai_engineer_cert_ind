@@ -1,0 +1,44 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-srag_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-srag_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-srag}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-srag_app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src
+      - ./data:/data
+      - ./scripts:/app/scripts
+      - hf_cache:/data/hf_cache
+    environment:
+      DATABASE_URL: postgresql://srag_app:srag_pass@db:5432/srag
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      LLM_MODEL: ${LLM_MODEL:-gemini-2.5-flash}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      HF_HOME: /data/hf_cache
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  hf_cache:
