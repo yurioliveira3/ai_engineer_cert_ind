@@ -12,3 +12,15 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def effective_api_key(self) -> str:
+        """Return the API key to use.
+
+        For Gemini, falls back to GOOGLE_API_KEY if LLM_API_KEY is empty.
+        """
+        if self.llm_api_key and self.llm_api_key != "placeholder":
+            return self.llm_api_key
+        import os
+
+        return os.environ.get("GOOGLE_API_KEY", "")

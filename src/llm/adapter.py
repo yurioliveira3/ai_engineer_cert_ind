@@ -24,18 +24,19 @@ def get_chat_model(settings: Settings):
 
     provider = PROVIDERS[provider_key]
     model_name = settings.llm_model or provider.get("default_model", "")
+    api_key = settings.effective_api_key
 
     if provider["class"] == "ChatGoogleGenerativeAI":
         return ChatGoogleGenerativeAI(
             model=model_name,
-            google_api_key=settings.llm_api_key,
+            google_api_key=api_key,
             **provider.get("extra_kwargs", {}),
         )
 
     if provider["class"] == "ChatOpenAI":
         kwargs: dict = {
             "model": model_name,
-            "api_key": settings.llm_api_key if provider.get("requires_api_key", True) else "ollama",
+            "api_key": api_key if provider.get("requires_api_key", True) else "ollama",
         }
         if settings.llm_base_url:
             kwargs["base_url"] = settings.llm_base_url
