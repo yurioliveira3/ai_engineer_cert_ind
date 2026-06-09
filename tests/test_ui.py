@@ -120,3 +120,21 @@ class TestFormatMetricValue:
 
         result = format_metric_value({"error": "query failed"})
         assert "erro" in result.lower() or "error" in result.lower() or "?" in result
+
+    def test_format_metric_value_with_zero(self):
+        """format_metric_value(0.0) should return '0.00%'."""
+        from src.ui.app import format_metric_value
+
+        assert format_metric_value(0.0) == "0.00%"
+
+    def test_format_metric_value_with_negative(self):
+        """format_metric_value(-5.3) should return '-5.30%'."""
+        from src.ui.app import format_metric_value
+
+        assert format_metric_value(-5.3) == "-5.30%"
+
+    def test_format_metric_value_empty_dict(self):
+        """format_metric_value({}) should return 'N/A'."""
+        from src.ui.app import format_metric_value
+
+        assert format_metric_value({}) == "N/A"

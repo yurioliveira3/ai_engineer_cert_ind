@@ -335,3 +335,26 @@ class TestOrchestratorFlow:
             agent.invoke({"messages": [("user", "Relatório")]})
 
             assert mock_audit.log_decision.call_count == 6
+
+
+class TestParseMetricResultEdgeCases:
+    def test_parse_metric_result_with_nan(self):
+        """_parse_metric_result should convert 'NaN' string to None."""
+        from src.agent.orchestrator import _parse_metric_result
+
+        result = _parse_metric_result("taxa_aumento: NaN\n")
+        assert result.get("taxa_aumento") is None
+
+    def test_parse_metric_result_with_none_string(self):
+        """_parse_metric_result should convert 'None' string to None."""
+        from src.agent.orchestrator import _parse_metric_result
+
+        result = _parse_metric_result("taxa_aumento: None\n")
+        assert result.get("taxa_aumento") is None
+
+    def test_parse_metric_result_with_inf(self):
+        """_parse_metric_result should convert 'inf' string to None."""
+        from src.agent.orchestrator import _parse_metric_result
+
+        result = _parse_metric_result("taxa_aumento: inf\n")
+        assert result.get("taxa_aumento") is None

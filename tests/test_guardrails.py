@@ -33,27 +33,27 @@ class TestSQLSafetyValidation:
             "GRANT ALL ON srag.srag_cases TO public;",
         ]
         for stmt in ddl_statements:
-            is_safe, reason = validate_sql_safety(stmt)
+            is_safe, _reason = validate_sql_safety(stmt)
             assert not is_safe, f"Should block DDL: {stmt}"
 
     def test_multi_statement_blocked(self):
         stmt = "SELECT COUNT(*) FROM srag.srag_cases; SELECT 1;"
-        is_safe, reason = validate_sql_safety(stmt)
+        is_safe, _reason = validate_sql_safety(stmt)
         assert not is_safe
 
     def test_select_star_without_where_blocked(self):
         stmt = "SELECT * FROM srag.srag_cases"
-        is_safe, reason = validate_sql_safety(stmt)
+        is_safe, _reason = validate_sql_safety(stmt)
         assert not is_safe
 
     def test_valid_select_passes(self):
         stmt = "SELECT COUNT(*) FROM srag.srag_cases WHERE caso_confirmado = true"
-        is_safe, reason = validate_sql_safety(stmt)
+        is_safe, _reason = validate_sql_safety(stmt)
         assert is_safe
 
     def test_select_with_limit_passes(self):
         stmt = "SELECT * FROM srag.srag_cases WHERE caso_confirmado = true LIMIT 10"
-        is_safe, reason = validate_sql_safety(stmt)
+        is_safe, _reason = validate_sql_safety(stmt)
         assert is_safe
 
     def test_sql_injection_blocked(self):
@@ -218,3 +218,39 @@ class TestAuditLogger:
         assert params["qh"] == "abc123"
         assert params["ems"] == 42
         mock_conn.commit.assert_called_once()
+
+
+class TestSqlSafetyEdgeCases:
+    def test_select_star_without_where_blocked(self):
+        """SELECT * FROM table (no WHERE) should be blocked."""
+        from src.agent.guardrails import validate_sql_safety
+
+        is_safe, reason = validate_sql_safety("SELECT * FROM srag.srag_cases")
+        assert not is_safe
+        assert "SELECT *" in reason or "WHERE" in reason
+
+    def test_select_star_with_where_allowed(self):
+        """SELECT * FROM table WHERE ... should be allowed."""
+        from src.agent.guardrails import validate_sql_safety
+
+        is_safe, reason = validate_sql_safety(
+            "SELECT * FROM srag.srag_cases WHERE caso_confirmado = true LIMIT 10"
+        )
+        assert is_safe
+
+
+class TestValidateMetricsEdgeCases:
+    def test_validate_metrics_empty_dict(self):
+        """validate_metrics({}) should return {} without errors."""
+        from src.agent.guardrails import validate_metrics
+
+        result = validate_metrics({})
+        assert result == {}
+        assert "warnings" not in result
+
+    def test_validate_output_pii_no_pii(self):
+        """validate_output_pii with clean text returns it unchanged."""
+        from src.agent.guardrails import validate_output_pii
+
+        text = "A taxa de mortalidade foi 7.47% no período analisado."
+        assert validate_output_pii(text) == text
