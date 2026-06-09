@@ -16,7 +16,7 @@ class Settings(BaseSettings):
         log_level: Logging level (e.g. "INFO", "DEBUG").
     """
 
-    database_url: str = "postgresql://srag_app:srag_pass@db:5432/srag"
+    database_url: str = "postgresql://srag_app:srag_pass@srag-db:5432/srag"
     llm_provider: str = "gemini"
     llm_api_key: str = ""
     llm_base_url: str = ""
