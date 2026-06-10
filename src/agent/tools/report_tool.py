@@ -94,7 +94,7 @@ class _SRAGReport(FPDF):
         try:
             dejavu_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
             if os.path.exists(dejavu_path):
-                self.add_font("DejaVu", "", dejavu_path, uni=True)
+                self.add_font("DejaVu", "", dejavu_path, uni=True)  # type: ignore[call-arg]
                 self._font_loaded = True
         except Exception:
             logger.debug("DejaVu font not available, falling back to Helvetica")
@@ -243,7 +243,6 @@ def _build_markdown(
 
 def generate_report(
     metrics: dict,
-    charts: dict,
     news: list[dict],
     analysis: str,
     data_ref: str,

@@ -2,9 +2,11 @@
 # news) rather than creative generation: low temperature with reduced nucleus
 # (top_p) and top_k narrow the model to high-probability, on-context tokens.
 # top_k applies to Gemini only (not part of the standard OpenAI chat API).
+from typing import Any
+
 _FACTUAL_SAMPLING = {"temperature": 0.2, "top_p": 0.85}
 
-PROVIDERS = {
+PROVIDERS: dict[str, dict[str, Any]] = {
     "gemini": {
         "class": "ChatGoogleGenerativeAI",
         "default_model": "gemini-2.5-flash",

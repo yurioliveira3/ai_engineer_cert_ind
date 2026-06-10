@@ -192,7 +192,10 @@ def main():
         or (isinstance(daily_info, str) and daily_info)
     )
     has_monthly = bool(
-        (isinstance(monthly_info, dict) and (monthly_info.get("fig_json") or monthly_info.get("path")))
+        (
+            isinstance(monthly_info, dict)
+            and (monthly_info.get("fig_json") or monthly_info.get("path"))
+        )
         or (isinstance(monthly_info, str) and monthly_info)
     )
 

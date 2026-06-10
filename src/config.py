@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         llm_model: Model identifier to use.
         embedding_model: HuggingFace model name for embeddings.
         embedding_dim: Dimensionality of the embedding vectors.
-        news_max_searches: Maximum number of news searches per run.
+        news_max_searches: Number of news items fetched per run (clamped to 5).
         log_level: Logging level (e.g. "INFO", "DEBUG").
     """
 

@@ -1,17 +1,16 @@
-"""SRAG Agent Orchestrator: LangGraph StateGraph with sequential node execution."""
+"""SRAG Agent Orchestrator: LangGraph StateGraph with sequential node execution.
 
-# SPEC_DEVIATION: Nodes call audit_logger.log_decision() directly
-# instead of @audit_step decorator.
-# Reason: LangGraph nodes receive (state, settings, audit_logger) as params,
-# making the decorator awkward. Direct calls give explicit control over
-# step/tool/input/output per node.
+Nodes call audit_logger.log_decision() directly (rather than via a decorator):
+LangGraph nodes receive (state, settings, audit_logger) and benefit from explicit
+control over step/tool/input/output per node.
+"""
 
 from __future__ import annotations
 
 import logging
 import math
 import time
-from typing import Annotated, TypedDict
+from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
@@ -135,7 +134,7 @@ def calculate_metrics(
     state: AgentState, settings: Settings, audit_logger: AgentAuditLogger
 ) -> dict:
     """Execute all 4 metric SQL queries and daily/monthly temporal queries."""
-    metrics = {}
+    metrics: dict[str, Any] = {}
     start = time.time()
     base_params = _filter_params(state)
     logger.info(
@@ -203,9 +202,7 @@ def generate_charts(state: AgentState, settings: Settings, audit_logger: AgentAu
             "monthly_cases_12m", params=dict(base_params), settings=settings
         )
         # monthly query returns column "mes"; chart expects "dt_notific"
-        monthly_data = [
-            {"dt_notific": r.get("mes"), "casos": r.get("casos")} for r in monthly_raw
-        ]
+        monthly_data = [{"dt_notific": r.get("mes"), "casos": r.get("casos")} for r in monthly_raw]
         monthly_path, monthly_fig = generate_monthly_cases_chart(monthly_data, data_ref=data_ref)
         charts["monthly"] = {"path": monthly_path, "fig_json": monthly_fig.to_json()}
     except Exception as e:
@@ -231,8 +228,11 @@ def search_news_step(state: AgentState, settings: Settings, audit_logger: AgentA
 
     try:
         query = _news_query(state)
-        logger.info("[node] search_news: buscando noticias (query=%r, max=5)", query)
-        news = search_and_index_news(query, max_results=5, settings=settings)
+        # news_max_searches controls how many news items are fetched; clamp to the
+        # guardrail limit (search_and_index_news rejects max_results > 5).
+        max_results = min(settings.news_max_searches, 5)
+        logger.info("[node] search_news: buscando noticias (query=%r, max=%d)", query, max_results)
+        news = search_and_index_news(query, max_results=max_results, settings=settings)
 
         duration_ms = int((time.time() - start) * 1000)
         audit_logger.log_decision(
@@ -267,9 +267,7 @@ def retrieve_semantic(
 
     try:
         query = _news_query(state)
-        logger.info(
-            "[node] retrieve_semantic: busca semantica no pgvector (k=3, query=%r)", query
-        )
+        logger.info("[node] retrieve_semantic: busca semantica no pgvector (k=3, query=%r)", query)
         news_semantic = semantic_search_news(query, k=3, settings=settings)
 
         duration_ms = int((time.time() - start) * 1000)
@@ -370,19 +368,12 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
 
     try:
         metrics = state.get("metrics", {})
-        charts = state.get("charts", {})
         news = state.get("news", [])
         analysis = state.get("analysis", "")
         data_ref = str(metrics.get("data_ref", ""))
 
-        # report_tool expects {"daily": path, "monthly": path}
-        charts_paths = {
-            k: (v["path"] if isinstance(v, dict) else v) for k, v in charts.items()
-        }
-
         report = generate_report(
             metrics=metrics,
-            charts=charts_paths,
             news=news,
             analysis=analysis,
             data_ref=data_ref,
@@ -422,29 +413,29 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
 
 def _parse_metric_result(result_text: str) -> dict:
     """Parse the string output from execute_metric_query into a dict."""
-    result = {}
+    result: dict[str, Any] = {}
     for line in result_text.strip().split("\n"):
         if "Execution time" in line or line.startswith("Metric:"):
             continue
         if ":" in line:
-            key, _, val = line.strip().partition(":")
+            key, _, raw = line.strip().partition(":")
             key = key.strip()
-            val = val.strip()
-            if val in ("None", "NaN", "null", ""):
+            raw = raw.strip()
+            if raw in ("None", "NaN", "null", ""):
                 result[key] = None
                 continue
             try:
-                val = float(val)
-                if math.isnan(val) or math.isinf(val):
+                num = float(raw)
+                if math.isnan(num) or math.isinf(num):
                     result[key] = None
                     continue
+                result[key] = num
             except ValueError:
-                pass
-            result[key] = val
+                result[key] = raw
     return result
 
 
-def create_agent(settings: Settings = None):
+def create_agent(settings: Settings | None = None):
     """Create and compile the SRAG Agent LangGraph.
 
     Args:
