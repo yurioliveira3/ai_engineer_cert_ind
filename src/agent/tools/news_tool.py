@@ -36,11 +36,16 @@ def _classify_source(url: str) -> str:
     return "unverified"
 
 
-def _parse_ddg_results(raw: str, query: str) -> list[dict]:
-    try:
-        items = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        items = []
+def _parse_ddg_results(raw, query: str) -> list[dict]:
+    # DuckDuckGoSearchResults(output_format="list") returns a list of dicts;
+    # older/mocked callers may pass a JSON string.
+    if isinstance(raw, str):
+        try:
+            items = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            items = []
+    else:
+        items = raw or []
 
     if isinstance(items, dict):
         items = [items]
@@ -96,7 +101,9 @@ def search_and_index_news(
     if max_results > 5:
         raise ValueError(f"max_results={max_results} exceeds maximum of 5")
 
-    ddg = DuckDuckGoSearchResults(max_results=max_results, region="br-pt")
+    ddg = DuckDuckGoSearchResults(
+        max_results=max_results, region="br-pt", output_format="list"
+    )
     raw = ddg.invoke(query)
 
     results = _parse_ddg_results(raw, query)

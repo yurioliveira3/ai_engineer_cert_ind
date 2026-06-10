@@ -12,11 +12,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ src/
 COPY scripts/ scripts/
 
-ENV HF_HOME=/data/hf_cache
+ENV HF_HOME=/app/data/hf_cache \
+    PYTHONPATH=/app
 
-RUN adduser --disabled-password --gecos "" appuser
+RUN adduser --disabled-password --gecos "" appuser && \
+    mkdir -p /app/data && chown -R appuser:appuser /app/data
 USER appuser
 
 HEALTHCHECK CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
-CMD ["streamlit", "run", "src/ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "src/ui/app.py", \
+     "--server.port=8501", "--server.address=0.0.0.0", \
+     "--server.fileWatcherType=none"]

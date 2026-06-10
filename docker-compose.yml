@@ -11,7 +11,7 @@ services:
       - srag-pgdata:/var/lib/postgresql/data
       - ./db/init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-srag_app}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-srag_app} -d ${POSTGRES_DB:-srag}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,9 +22,8 @@ services:
       - "8501:8501"
     volumes:
       - ./src:/app/src
-      - ./data:/data
+      - ./data:/app/data
       - ./scripts:/app/scripts
-      - srag-hf-cache:/data/hf_cache
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-srag_app}:${POSTGRES_PASSWORD:-srag_pass}@srag-db:5432/${POSTGRES_DB:-srag}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
@@ -34,11 +33,10 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}
       EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      HF_HOME: /data/hf_cache
+      HF_HOME: /app/data/hf_cache
     depends_on:
       srag-db:
         condition: service_healthy
 
 volumes:
   srag-pgdata:
-  srag-hf-cache:

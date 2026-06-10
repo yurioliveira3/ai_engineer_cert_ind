@@ -39,6 +39,41 @@ def _resolve_params(params: dict, engine) -> dict:
     return params
 
 
+def get_data_ref(settings: Settings = None) -> str:
+    """Return MAX(dt_notific) from srag_cases as a formatted string."""
+    engine = _get_engine(settings)
+    with engine.connect() as conn:
+        val = conn.execute(text(get_data_ref_query())).scalar()
+    return val.strftime("%Y-%m-%d") if val else ""
+
+
+def execute_tabular_query(
+    metric_name: str,
+    params: dict | None = None,
+    settings: Settings = None,
+) -> list[dict]:
+    """Execute a metric query and return rows as a list of dicts (raw values).
+
+    Unlike execute_metric_query (which returns a formatted string for the LLM),
+    this preserves column structure for chart generation.
+    """
+    if metric_name not in METRIC_QUERIES:
+        return []
+
+    if params is None:
+        params = {}
+
+    engine = _get_engine(settings)
+    query = METRIC_QUERIES[metric_name]
+    params = _resolve_params(params, engine)
+
+    result, _ = safe_execute(query, params, engine)
+    if isinstance(result, str) or result.empty:
+        return []
+
+    return result.to_dict(orient="records")
+
+
 def execute_metric_query(
     metric_name: str,
     params: dict | None = None,

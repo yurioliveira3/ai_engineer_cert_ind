@@ -109,6 +109,34 @@ streamlit run src/ui/app.py
 docker compose up -d
 ```
 
+### Operações Docker
+
+**Recriar só o app** (preserva o banco e os dados):
+
+```bash
+docker compose stop srag-app
+docker compose build --no-cache srag-app
+docker compose up -d srag-app
+```
+
+**Recriar tudo do zero** (apaga banco e dados — requer seed após subir):
+
+```bash
+docker compose down -v          # para containers e apaga volumes (incluindo srag-pgdata)
+docker compose build --no-cache
+docker compose up -d
+python scripts/seed_db.py       # recarrega os dados no banco
+```
+
+> ⚠️ `down -v` apaga o volume `srag-pgdata`. Todos os dados do PostgreSQL são perdidos.
+
+**Verificar logs:**
+
+```bash
+docker compose logs -f srag-app
+docker compose logs -f srag-db
+```
+
 ### Configuração (.env)
 
 | Variável | Padrão | Descrição |
@@ -192,7 +220,7 @@ ruff check src/ tests/ scripts/
 ruff format src/ tests/ scripts/
 ```
 
-**Resultados atuais:** 109 testes unitários + 9 de integração = 118 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
+**Resultados atuais:** 99 testes unitários + 19 de integração = 118 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
 
 ## Estrutura do Projeto
 

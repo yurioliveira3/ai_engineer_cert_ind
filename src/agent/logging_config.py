@@ -4,54 +4,71 @@ import functools
 import json
 import logging
 import uuid
-from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 from sqlalchemy import text
 
-_loggers: dict[str, logging.Logger] = {}
+# Project package-root logger. Every module uses logging.getLogger(__name__),
+# i.e. "src.*", so configuring "src" makes all of them inherit these handlers.
+_APP_LOGGER = "src"
+
+# Third-party loggers that are noisy at INFO and add no value to the agent trace.
+_NOISY_LOGGERS = ("sentence_transformers", "transformers", "httpx", "httpcore", "urllib3")
 
 
-def setup_logger(name: str = "srag_agent", level: int = logging.INFO) -> logging.Logger:
-    """Configure daily rotating file logger + console output."""
-    if name in _loggers:
-        return _loggers[name]
+def setup_logger(name: str = _APP_LOGGER, level: int = logging.INFO) -> logging.Logger:
+    """Configure the project logger with console + daily rotating file output.
 
+    Configures the package-root logger ("src") so every module logger inherits
+    the handlers. Idempotent. Sets ``propagate = False`` so records do not bubble
+    up to the root logger (which avoids duplicated lines under Streamlit, whose
+    own root handler would otherwise re-emit every message).
+    """
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
+
+    if logger.handlers:  # already configured: only refresh the level
+        for handler in logger.handlers:
+            handler.setLevel(level if not isinstance(handler, TimedRotatingFileHandler) else logging.DEBUG)
+        return logger
+
+    logger.propagate = False
+
+    fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(fmt)
+    logger.addHandler(console_handler)
 
     log_dir = Path("data/logs")
     log_dir.mkdir(parents=True, exist_ok=True)
-
-    today = datetime.now(datetime.UTC).strftime("%Y%m%d")
     file_handler = TimedRotatingFileHandler(
-        log_dir / f"srag_agent_{today}.log",
+        log_dir / "srag_agent.log",
         when="midnight",
         backupCount=30,
     )
     file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    )
+    file_handler.setFormatter(fmt)
     logger.addHandler(file_handler)
 
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-    console_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-    logger.addHandler(console_handler)
+    # Keep noisy third-party libraries from drowning the agent trace.
+    for noisy in _NOISY_LOGGERS:
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    _loggers[name] = logger
+    logger.info("Logger configurado (nivel=%s, arquivo=%s)", logging.getLevelName(level), file_handler.baseFilename)
     return logger
 
 
 def get_logger(name: str | None = None) -> logging.Logger:
-    """Return existing logger or default."""
-    if name and name in _loggers:
-        return _loggers[name]
-    if _loggers:
-        return next(iter(_loggers.values()))
-    return setup_logger()
+    """Return a logger under the project namespace, ensuring it is configured."""
+    if not logging.getLogger(_APP_LOGGER).handlers:
+        setup_logger()
+    return logging.getLogger(name or _APP_LOGGER)
 
 
 class AgentAuditLogger:
@@ -70,11 +87,18 @@ class AgentAuditLogger:
         self.log_dir = Path(log_dir) if log_dir else Path("data/logs")
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.session_id: str | None = None
+        self._log = logging.getLogger("src.agent.audit")
 
     def start_session(self) -> str:
         """Start a new audit session, insert into audit.agent_sessions."""
         session_id = str(uuid.uuid4())
         self.session_id = session_id
+        self._log.info(
+            "Sessao iniciada: id=%s provider=%s model=%s",
+            session_id,
+            self.llm_provider,
+            self.llm_model,
+        )
         try:
             with self.engine.connect() as conn:
                 conn.execute(
@@ -98,6 +122,12 @@ class AgentAuditLogger:
         """End the current audit session."""
         if not self.session_id:
             return
+        self._log.info(
+            "Sessao finalizada: id=%s status=%s%s",
+            self.session_id,
+            status,
+            f" erro={error}" if error else "",
+        )
         try:
             with self.engine.connect() as conn:
                 conn.execute(
@@ -127,6 +157,15 @@ class AgentAuditLogger:
         success: bool,
     ) -> None:
         """Log an agent decision step."""
+        self._log.info(
+            "[tool-call] step=%s tool=%s status=%s duracao=%dms | entrada=%s | saida=%s",
+            step,
+            tool,
+            "ok" if success else "falha",
+            duration_ms,
+            input_summary,
+            output_summary,
+        )
         try:
             with self.engine.connect() as conn:
                 conn.execute(
@@ -159,6 +198,13 @@ class AgentAuditLogger:
         reason: str | None = None,
     ) -> None:
         """Log a query to audit.query_history with session reference."""
+        self._log.info(
+            "[sql] hash=%s duracao=%dms bloqueada=%s%s",
+            query_hash[:12],
+            exec_ms,
+            blocked,
+            f" motivo={reason}" if reason else "",
+        )
         try:
             with self.engine.connect() as conn:
                 conn.execute(
@@ -192,6 +238,15 @@ class AgentAuditLogger:
         duration_ms: int,
     ) -> None:
         """Log an LLM call to audit.llm_calls."""
+        self._log.info(
+            "[llm-call] prompt=%s hash=%s tokens_in=%d tokens_out=%d duracao=%dms | resposta=%r",
+            prompt_name,
+            prompt_hash[:12] if prompt_hash else "-",
+            tokens_in,
+            tokens_out,
+            duration_ms,
+            (response_summary or "")[:120],
+        )
         try:
             with self.engine.connect() as conn:
                 conn.execute(
