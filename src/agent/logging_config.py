@@ -1,11 +1,11 @@
 """Audit logging and runtime guardrails configuration."""
 
-import functools
 import json
 import logging
 import uuid
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import text
 
@@ -30,7 +30,9 @@ def setup_logger(name: str = _APP_LOGGER, level: int = logging.INFO) -> logging.
 
     if logger.handlers:  # already configured: only refresh the level
         for handler in logger.handlers:
-            handler.setLevel(level if not isinstance(handler, TimedRotatingFileHandler) else logging.DEBUG)
+            handler.setLevel(
+                level if not isinstance(handler, TimedRotatingFileHandler) else logging.DEBUG
+            )
         return logger
 
     logger.propagate = False
@@ -60,7 +62,11 @@ def setup_logger(name: str = _APP_LOGGER, level: int = logging.INFO) -> logging.
     for noisy in _NOISY_LOGGERS:
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    logger.info("Logger configurado (nivel=%s, arquivo=%s)", logging.getLevelName(level), file_handler.baseFilename)
+    logger.info(
+        "Logger configurado (nivel=%s, arquivo=%s)",
+        logging.getLevelName(level),
+        file_handler.baseFilename,
+    )
     return logger
 
 
@@ -276,7 +282,12 @@ class AgentAuditLogger:
         sid = session_id or self.session_id
         if not sid:
             return {}
-        result = {"session_id": sid, "decisions": [], "queries": [], "llm_calls": []}
+        result: dict[str, Any] = {
+            "session_id": sid,
+            "decisions": [],
+            "queries": [],
+            "llm_calls": [],
+        }
         try:
             with self.engine.connect() as conn:
                 row = conn.execute(
@@ -288,40 +299,3 @@ class AgentAuditLogger:
         except Exception:
             pass
         return result
-
-
-def audit_step(step_name: str):
-    """Decorator that wraps node functions and logs decision via audit_logger kwarg."""
-
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            audit_logger = kwargs.get("audit_logger")
-            import time
-
-            start = time.time()
-            success = True
-            output_summary = ""
-            try:
-                result = func(*args, **kwargs)
-                output_summary = str(result)[:200]
-                return result
-            except Exception as e:
-                success = False
-                output_summary = str(e)[:200]
-                raise
-            finally:
-                if audit_logger:
-                    duration_ms = int((time.time() - start) * 1000)
-                    audit_logger.log_decision(
-                        step=step_name,
-                        tool=func.__name__,
-                        input_summary="",
-                        output_summary=output_summary,
-                        duration_ms=duration_ms,
-                        success=success,
-                    )
-
-        return wrapper
-
-    return decorator

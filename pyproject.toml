@@ -20,3 +20,32 @@ testpaths = ["tests"]
 markers = [
     "integration: marks tests that require real database and CSV data",
 ]
+# Coverage runs by default over the unit suite (the one that runs without a DB).
+# --cov-fail-under is the local "budget": the run fails if coverage drops below it.
+addopts = "--cov=src --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.11"
+# Lightweight config: most third-party libs (langchain, plotly, fpdf, ddgs,
+# pgvector) ship no stubs, so missing imports are ignored rather than chased.
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+# Not strict: the codebase has partial type hints; this catches real mistakes
+# without forcing full annotation coverage.
+
+[tool.coverage.run]
+source = ["src"]
+# Streamlit UI is hard to cover headless; the SQLAlchemy model is declarative.
+omit = [
+    "src/ui/*",
+    "src/data/models.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+# Budget calibrated from the unit suite (~79%); modules needing a DB/model
+# (sql_tool, embeddings) are covered by the integration suite instead. The run
+# fails locally if coverage regresses below this.
+fail_under = 75

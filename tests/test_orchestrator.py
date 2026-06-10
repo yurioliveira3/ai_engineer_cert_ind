@@ -349,6 +349,53 @@ class TestOrchestratorFlow:
             assert mock_audit.log_decision.call_count == 6
 
 
+class TestFilterParams:
+    """The UI filters (UF / data_ref) are translated into query params."""
+
+    def test_no_filters_returns_empty(self):
+        from src.agent.orchestrator import _filter_params
+
+        assert _filter_params({}) == {}
+
+    def test_todos_uf_is_ignored(self):
+        from src.agent.orchestrator import _filter_params
+
+        assert _filter_params({"uf": "Todos"}) == {}
+
+    def test_uf_filter_propagated(self):
+        from src.agent.orchestrator import _filter_params
+
+        assert _filter_params({"uf": "SP"}) == {"uf": "SP"}
+
+    def test_data_ref_filter_propagated(self):
+        import datetime
+
+        from src.agent.orchestrator import _filter_params
+
+        d = datetime.date(2025, 7, 15)
+        assert _filter_params({"data_ref": d}) == {"data_ref": d}
+
+
+class TestNewsQuery:
+    """The news search term is regionalised by the UF filter."""
+
+    def test_regionalised_when_uf_set(self):
+        from src.agent.orchestrator import _news_query
+
+        assert _news_query({"uf": "SP", "messages": []}) == "SRAG São Paulo epidemiologia"
+
+    def test_uses_user_message_when_no_uf(self):
+        from src.agent.orchestrator import _news_query
+
+        q = _news_query({"uf": "Todos", "messages": [("user", "Gere o relatório SRAG")]})
+        assert q == "Gere o relatório SRAG"
+
+    def test_national_fallback_when_empty(self):
+        from src.agent.orchestrator import _news_query
+
+        assert _news_query({"messages": []}) == "SRAG Brasil epidemiologia"
+
+
 class TestParseMetricResultEdgeCases:
     def test_parse_metric_result_with_nan(self):
         """_parse_metric_result should convert 'NaN' string to None."""

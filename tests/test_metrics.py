@@ -211,6 +211,16 @@ class TestDataRef:
             assert has_params, f"Query {name} should use date parameters, not NOW()"
 
 
+class TestQueryFilters:
+    """Static checks on the query templates (no DB needed)."""
+
+    def test_all_metric_queries_support_uf_filter(self):
+        """Every metric query (and the data_ref query) must support the :uf filter."""
+        for name, query in METRIC_QUERIES.items():
+            assert ":uf" in query, f"Query {name} is missing the optional :uf filter"
+        assert ":uf" in get_data_ref_query()
+
+
 @pytest.mark.integration
 class TestQueryResultsNumeric:
     """Validate that metric results contain parseable numeric values."""

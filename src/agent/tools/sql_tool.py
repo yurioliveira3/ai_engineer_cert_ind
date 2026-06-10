@@ -11,7 +11,7 @@ from src.data.queries import METRIC_QUERIES, get_data_ref_query
 logger = logging.getLogger(__name__)
 
 
-def _get_engine(settings: Settings = None):
+def _get_engine(settings: Settings | None = None):
     """Create a SQLAlchemy engine from settings."""
     if settings is None:
         settings = Settings()
@@ -45,7 +45,7 @@ def _resolve_params(params: dict, engine) -> dict:
     return params
 
 
-def get_data_ref(settings: Settings = None, uf: str | None = None) -> str:
+def get_data_ref(settings: Settings | None = None, uf: str | None = None) -> str:
     """Return MAX(dt_notific) as a formatted string, optionally per state."""
     engine = _get_engine(settings)
     with engine.connect() as conn:
@@ -56,7 +56,7 @@ def get_data_ref(settings: Settings = None, uf: str | None = None) -> str:
 def execute_tabular_query(
     metric_name: str,
     params: dict | None = None,
-    settings: Settings = None,
+    settings: Settings | None = None,
 ) -> list[dict]:
     """Execute a metric query and return rows as a list of dicts (raw values).
 
@@ -83,7 +83,7 @@ def execute_tabular_query(
 def execute_metric_query(
     metric_name: str,
     params: dict | None = None,
-    settings: Settings = None,
+    settings: Settings | None = None,
 ) -> str:
     """Execute a pre-defined metric query and return formatted results.
 

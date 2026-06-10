@@ -12,10 +12,6 @@ def _sample_metrics():
     }
 
 
-def _sample_charts():
-    return {"daily": "/tmp/daily_cases.png", "monthly": "/tmp/monthly_cases.png"}
-
-
 def _sample_news():
     return [
         {
@@ -45,7 +41,6 @@ class TestGenerateReportReturnsMarkdown:
     def test_markdown_contains_all_four_metric_keywords(self, tmp_path):
         result = generate_report(
             metrics=_sample_metrics(),
-            charts=_sample_charts(),
             news=_sample_news(),
             analysis=_sample_analysis(),
             data_ref=_sample_data_ref(),
@@ -62,7 +57,6 @@ class TestGenerateReportReturnsPdfPath:
     def test_pdf_path_ends_with_pdf_and_file_exists(self, tmp_path):
         result = generate_report(
             metrics=_sample_metrics(),
-            charts=_sample_charts(),
             news=_sample_news(),
             analysis=_sample_analysis(),
             data_ref=_sample_data_ref(),
@@ -76,7 +70,6 @@ class TestReportContainsNewsSection:
     def test_markdown_has_news_section_when_news_nonempty(self, tmp_path):
         result = generate_report(
             metrics=_sample_metrics(),
-            charts=_sample_charts(),
             news=_sample_news(),
             analysis=_sample_analysis(),
             data_ref=_sample_data_ref(),
@@ -92,7 +85,6 @@ class TestReportWithoutNews:
     def test_generates_valid_markdown_when_news_empty(self, tmp_path):
         result = generate_report(
             metrics=_sample_metrics(),
-            charts=_sample_charts(),
             news=[],
             analysis=_sample_analysis(),
             data_ref=_sample_data_ref(),
@@ -108,7 +100,6 @@ class TestPortugueseAccentsInPdf:
     def test_pdf_starts_with_header_and_accents_not_corrupted(self, tmp_path):
         result = generate_report(
             metrics=_sample_metrics(),
-            charts=_sample_charts(),
             news=_sample_news(),
             analysis=_sample_analysis(),
             data_ref=_sample_data_ref(),

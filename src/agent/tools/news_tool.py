@@ -101,7 +101,7 @@ def search_and_index_news(
     if max_results > 5:
         raise ValueError(f"max_results={max_results} exceeds maximum of 5")
 
-    ddg = DuckDuckGoSearchResults(
+    ddg = DuckDuckGoSearchResults(  # type: ignore[call-arg]
         max_results=max_results, region="br-pt", output_format="list"
     )
     raw = ddg.invoke(query)

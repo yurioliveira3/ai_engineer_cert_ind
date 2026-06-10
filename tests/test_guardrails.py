@@ -9,7 +9,7 @@ from src.agent.guardrails import (
     validate_sql_safety,
     validate_user_input,
 )
-from src.agent.logging_config import AgentAuditLogger, audit_step
+from src.agent.logging_config import AgentAuditLogger
 
 
 class TestSQLSafetyValidation:
@@ -176,18 +176,6 @@ class TestAuditLogger:
         logger_instance.end_session(status="completed")
         mock_conn.execute.assert_called()
         mock_conn.commit.assert_called()
-
-    def test_audit_step_decorator(self):
-        mock_logger = MagicMock()
-        mock_logger.log_decision = MagicMock()
-
-        @audit_step("test_step")
-        def my_node(audit_logger=None, **kwargs):
-            return "result"
-
-        result = my_node(audit_logger=mock_logger)
-        assert result == "result"
-        mock_logger.log_decision.assert_called_once()
 
     def test_audit_logger_log_query_updates_session_id(self):
         mock_engine = MagicMock()

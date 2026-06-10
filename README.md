@@ -154,7 +154,7 @@ docker compose logs -f srag-db
 | `EMBEDDING_MODEL` | `BAAI/bge-large-en-v1.5` | Modelo de embeddings |
 | `EMBEDDING_DIM` | `1024` | Dimensão dos embeddings |
 | `LOG_LEVEL` | `INFO` | Nível de log |
-| `NEWS_MAX_SEARCHES` | `3` | Lido pelo Settings, mas o orquestrador usa `max_results=5` fixo no `search_news_step` |
+| `NEWS_MAX_SEARCHES` | `3` | Número de notícias buscadas por execução (limitado a 5 pelo guardrail) |
 
 ## Dados
 
@@ -235,21 +235,32 @@ Além da auditoria no banco, o `AgentAuditLogger` emite um **trace verboso** no 
 ## Testes
 
 ```bash
-# Testes unitários (sem banco/CVS reais)
-pytest tests/ -v -m "not integration"
+# Testes unitários (sem banco/CSV reais) — já mede cobertura por padrão
+pytest tests/ -m "not integration"
 
 # Testes de integração (requer banco populado e CSV em data/raw/)
-pytest tests/ -v -m integration
-
-# Todos os testes
-pytest tests/ -v
+pytest tests/ -m integration
 
 # Lint e formatação
 ruff check src/ tests/ scripts/
-ruff format src/ tests/ scripts/
+ruff format --check src/ tests/ scripts/
+
+# Type checking
+mypy src/
 ```
 
-**Resultados atuais:** 102 testes unitários + 19 de integração = 121 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
+### Cobertura (budget local)
+
+A suíte unitária roda com `pytest-cov` por padrão (`addopts` no `pyproject.toml`) e
+aplica um **budget** via `--cov-fail-under`: o comando falha se a cobertura cair abaixo
+do limite (`fail_under = 75` em `[tool.coverage.report]`). O budget é calibrado sobre a
+suíte unitária (~79%); módulos que dependem de banco/modelo (`sql_tool`, `embeddings`)
+são exercitados pela suíte de integração. A UI Streamlit e o model declarativo são
+omitidos da medição.
+
+**Resultados atuais:** 116 testes unitários + 19 de integração = 135 total; cobertura
+unitária ~79% (budget 75%); ruff limpo (E, F, I, N, W, UP, B, SIM, T20, RUF); mypy sem
+erros (config leve, não-strict).
 
 ## Estrutura do Projeto
 
@@ -258,7 +269,7 @@ srag-agent/
 ├── docker-compose.yml          # PostgreSQL + pgvector (porta 5433)
 ├── Dockerfile                  # Container da aplicação (porta 8501)
 ├── requirements.txt            # Dependências Python
-├── pyproject.toml              # Configuração do projeto (ruff, pytest)
+├── pyproject.toml              # Config do projeto (ruff, pytest, coverage+budget, mypy)
 ├── .env.example                # Template de variáveis de ambiente
 ├── db/init-scripts/            # 5 scripts SQL de inicialização
 │   ├── 01_schemas.sql         # Schemas: srag, news, audit

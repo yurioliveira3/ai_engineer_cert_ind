@@ -90,7 +90,9 @@ def safe_invoke(model, prompt: str, retries: int = 5, backoff_factor: int = 2):
                 )
                 time.sleep(wait)
 
-    raise last_error
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("safe_invoke: no result and no error captured")
 
 
 def _estimate_tokens(text: str) -> int:

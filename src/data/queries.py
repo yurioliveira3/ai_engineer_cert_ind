@@ -93,10 +93,7 @@ def get_data_ref_query() -> str:
     Uses a :uf bind (NULL = whole country) so the reference date reflects the
     latest notification available for the selected scope.
     """
-    return (
-        "SELECT MAX(dt_notific) FROM srag.srag_cases "
-        "WHERE (:uf IS NULL OR sg_uf_not = :uf)"
-    )
+    return "SELECT MAX(dt_notific) FROM srag.srag_cases WHERE (:uf IS NULL OR sg_uf_not = :uf)"
 
 
 METRIC_QUERIES = {

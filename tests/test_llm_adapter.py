@@ -87,3 +87,32 @@ class TestSafeInvoke:
         result = safe_invoke(model, "test prompt")
         assert result.content == "Success"
         assert model.invoke.call_count == 1
+
+
+class TestGetTokenUsage:
+    def test_uses_provider_usage_metadata(self):
+        from src.llm.adapter import get_token_usage
+
+        resp = MagicMock()
+        resp.usage_metadata = {"input_tokens": 1234, "output_tokens": 567}
+        resp.content = "abc"
+        assert get_token_usage(resp, "prompt") == (1234, 567)
+
+    def test_falls_back_to_estimate_when_no_metadata(self):
+        from src.llm.adapter import get_token_usage
+
+        resp = MagicMock()
+        resp.usage_metadata = None
+        resp.content = "x" * 400  # ~100 tokens
+        # prompt 800 chars -> ~200 tokens; content 400 chars -> ~100 tokens
+        assert get_token_usage(resp, "y" * 800) == (200, 100)
+
+    def test_partial_metadata_estimates_missing_side(self):
+        from src.llm.adapter import get_token_usage
+
+        resp = MagicMock()
+        resp.usage_metadata = {"input_tokens": 50, "output_tokens": 0}
+        resp.content = "z" * 40  # ~10 tokens
+        tokens_in, tokens_out = get_token_usage(resp, "prompt")
+        assert tokens_in == 50
+        assert tokens_out == 10
