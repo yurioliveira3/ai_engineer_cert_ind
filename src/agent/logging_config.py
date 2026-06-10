@@ -70,13 +70,6 @@ def setup_logger(name: str = _APP_LOGGER, level: int = logging.INFO) -> logging.
     return logger
 
 
-def get_logger(name: str | None = None) -> logging.Logger:
-    """Return a logger under the project namespace, ensuring it is configured."""
-    if not logging.getLogger(_APP_LOGGER).handlers:
-        setup_logger()
-    return logging.getLogger(name or _APP_LOGGER)
-
-
 class AgentAuditLogger:
     """Audit logger for agent sessions, decisions, queries and LLM calls."""
 
@@ -195,44 +188,6 @@ class AgentAuditLogger:
         except Exception as e:
             logging.getLogger(__name__).warning(f"Failed to log decision: {e}")
 
-    def log_query(
-        self,
-        query_text: str,
-        query_hash: str,
-        exec_ms: int,
-        blocked: bool = False,
-        reason: str | None = None,
-    ) -> None:
-        """Log a query to audit.query_history with session reference."""
-        self._log.info(
-            "[sql] hash=%s duracao=%dms bloqueada=%s%s",
-            query_hash[:12],
-            exec_ms,
-            blocked,
-            f" motivo={reason}" if reason else "",
-        )
-        try:
-            with self.engine.connect() as conn:
-                conn.execute(
-                    text("""
-                        INSERT INTO audit.query_history
-                        (session_id, query_text, query_hash, execution_time_ms,
-                         blocked, block_reason)
-                        VALUES (:sid, :qt, :qh, :ems, :blocked, :reason)
-                    """),
-                    {
-                        "sid": self.session_id,
-                        "qt": query_text,
-                        "qh": query_hash,
-                        "ems": exec_ms,
-                        "blocked": blocked,
-                        "reason": reason,
-                    },
-                )
-                conn.commit()
-        except Exception as e:
-            logging.getLogger(__name__).warning(f"Failed to log query: {e}")
-
     def log_llm_call(
         self,
         prompt_name: str,
@@ -282,12 +237,7 @@ class AgentAuditLogger:
         sid = session_id or self.session_id
         if not sid:
             return {}
-        result: dict[str, Any] = {
-            "session_id": sid,
-            "decisions": [],
-            "queries": [],
-            "llm_calls": [],
-        }
+        result: dict[str, Any] = {"session_id": sid}
         try:
             with self.engine.connect() as conn:
                 row = conn.execute(

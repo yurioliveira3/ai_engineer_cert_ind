@@ -4,7 +4,7 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from src.config import Settings
-from src.llm.adapter import get_chat_model, get_embeddings, safe_invoke
+from src.llm.adapter import get_chat_model, safe_invoke
 
 
 class TestGetChatModel:
@@ -49,16 +49,6 @@ class TestGetChatModel:
         )
         with pytest.raises(ValueError, match="Unknown LLM provider"):
             get_chat_model(settings)
-
-
-class TestGetEmbeddings:
-    def test_get_embeddings_returns_singleton(self):
-        settings = Settings(embedding_model="BAAI/bge-large-en-v1.5")
-        with patch("src.llm.adapter.HuggingFaceEmbeddings") as mock_cls:
-            mock_cls.return_value = MagicMock()
-            emb1 = get_embeddings(settings)
-            emb2 = get_embeddings(settings)
-            assert emb1 is emb2
 
 
 class TestSafeInvoke:

@@ -3,15 +3,12 @@ import time
 
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 
 from src.config import Settings
 from src.llm.providers import PROVIDERS
 
 logger = logging.getLogger(__name__)
-
-_embeddings_instance: HuggingFaceEmbeddings | None = None
 
 
 def get_chat_model(settings: Settings):
@@ -51,18 +48,6 @@ def get_chat_model(settings: Settings):
         return ChatOpenAI(**kwargs)
 
     raise ValueError(f"Unsupported provider class: {provider['class']}")
-
-
-def get_embeddings(settings: Settings) -> HuggingFaceEmbeddings:
-    """Return a singleton HuggingFaceEmbeddings instance."""
-    global _embeddings_instance
-    if _embeddings_instance is None:
-        logger.info(f"Loading embedding model: {settings.embedding_model}")
-        _embeddings_instance = HuggingFaceEmbeddings(
-            model_name=settings.embedding_model,
-        )
-        logger.info("Embedding model loaded")
-    return _embeddings_instance
 
 
 _RATE_LIMIT_MARKERS = ["429", "ResourceExhausted", "RateLimitError", "rate_limit"]
