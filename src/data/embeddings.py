@@ -54,7 +54,7 @@ class NewsEmbeddingsRepository:
                         (url, title, snippet, source, query_used, embedding)
                     VALUES
                         (:url, :title, :snippet,
-                         :source, :query_used, :embedding::vector)
+                         :source, :query_used, CAST(:embedding AS vector))
                     ON CONFLICT (url) DO UPDATE SET
                         title = EXCLUDED.title,
                         snippet = EXCLUDED.snippet,
@@ -93,10 +93,10 @@ class NewsEmbeddingsRepository:
             results = conn.execute(
                 text("""
                     SELECT url, title, snippet, source, query_used, indexed_at,
-                           1 - (embedding <=> :query_embedding::vector) as score
+                           1 - (embedding <=> CAST(:query_embedding AS vector)) as score
                     FROM news.news_embeddings
-                    WHERE 1 - (embedding <=> :query_embedding::vector) >= 0.6
-                    ORDER BY embedding <=> :query_embedding::vector
+                    WHERE 1 - (embedding <=> CAST(:query_embedding AS vector)) >= 0.6
+                    ORDER BY embedding <=> CAST(:query_embedding AS vector)
                     LIMIT :k
                 """),
                 {"query_embedding": embedding_str, "k": k},

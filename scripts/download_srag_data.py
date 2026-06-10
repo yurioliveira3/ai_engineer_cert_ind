@@ -38,14 +38,14 @@ DICIONARIO_URL = f"{S3_BASE}/dicionario-de-dados-2019-a-2025.pdf"
 def download_file(url: str, dest: Path) -> bool:
     """Download a file with progress indicator."""
     logger.info(f"Downloading {url}...")
-    logger.info(f"  → {dest}")
+    logger.info(f"  -> {dest}")
     try:
         urllib.request.urlretrieve(url, str(dest))
         size_mb = dest.stat().st_size / (1024 * 1024)
-        logger.info(f"  ✓ Downloaded ({size_mb:.1f} MB)")
+        logger.info(f"  Downloaded ({size_mb:.1f} MB)")
         return True
     except Exception as e:
-        logger.error(f"  ✗ Failed: {e}")
+        logger.error(f"  Failed: {e}")
         if dest.exists():
             dest.unlink()
         return False

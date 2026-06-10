@@ -54,6 +54,8 @@ class TestOrchestratorFlow:
 
         with (
             patch("src.agent.orchestrator.execute_metric_query") as mock_sql,
+            patch("src.agent.orchestrator.get_data_ref", return_value="2026-12-05"),
+            patch("src.agent.orchestrator.execute_tabular_query", return_value=[]),
             patch("src.agent.orchestrator.search_and_index_news") as mock_news,
             patch("src.agent.orchestrator.semantic_search_news") as mock_semantic,
             patch("src.agent.orchestrator.generate_daily_cases_chart") as mock_daily,
@@ -134,6 +136,8 @@ class TestOrchestratorFlow:
 
         with (
             patch("src.agent.orchestrator.execute_metric_query", side_effect=mock_sql_side_effect),
+            patch("src.agent.orchestrator.get_data_ref", return_value="2026-12-05"),
+            patch("src.agent.orchestrator.execute_tabular_query", return_value=[]),
             patch("src.agent.orchestrator.search_and_index_news") as mock_news,
             patch("src.agent.orchestrator.semantic_search_news") as mock_semantic,
             patch("src.agent.orchestrator.generate_daily_cases_chart") as mock_daily,
@@ -178,6 +182,8 @@ class TestOrchestratorFlow:
 
         with (
             patch("src.agent.orchestrator.execute_metric_query") as mock_sql,
+            patch("src.agent.orchestrator.get_data_ref", return_value="2026-12-05"),
+            patch("src.agent.orchestrator.execute_tabular_query", return_value=[]),
             patch(
                 "src.agent.orchestrator.search_and_index_news", side_effect=Exception("DDG failed")
             ),
@@ -232,6 +238,8 @@ class TestOrchestratorFlow:
 
         with (
             patch("src.agent.orchestrator.execute_metric_query", side_effect=mock_sql_side_effect),
+            patch("src.agent.orchestrator.get_data_ref", return_value="2026-12-05"),
+            patch("src.agent.orchestrator.execute_tabular_query", return_value=[]),
             patch("src.agent.orchestrator.search_and_index_news") as mock_news,
             patch("src.agent.orchestrator.semantic_search_news") as mock_semantic,
             patch("src.agent.orchestrator.generate_daily_cases_chart") as mock_daily,
@@ -276,6 +284,8 @@ class TestOrchestratorFlow:
 
         with (
             patch("src.agent.orchestrator.execute_metric_query") as mock_sql,
+            patch("src.agent.orchestrator.get_data_ref", return_value="2026-12-05"),
+            patch("src.agent.orchestrator.execute_tabular_query", return_value=[]),
             patch("src.agent.orchestrator.search_and_index_news") as mock_news,
             patch("src.agent.orchestrator.semantic_search_news") as mock_semantic,
             patch("src.agent.orchestrator.generate_daily_cases_chart") as mock_daily,
@@ -318,6 +328,8 @@ class TestOrchestratorFlow:
 
         with (
             patch("src.agent.orchestrator.execute_metric_query") as mock_sql,
+            patch("src.agent.orchestrator.get_data_ref", return_value="2026-12-05"),
+            patch("src.agent.orchestrator.execute_tabular_query", return_value=[]),
             patch("src.agent.orchestrator.search_and_index_news") as mock_news,
             patch("src.agent.orchestrator.semantic_search_news") as mock_semantic,
             patch("src.agent.orchestrator.generate_daily_cases_chart") as mock_daily,

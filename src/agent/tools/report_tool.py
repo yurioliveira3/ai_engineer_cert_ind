@@ -17,6 +17,51 @@ METRIC_LABELS = {
     "vaccination_rate": "Taxa de vacinação",
 }
 
+_RATE_KEYS = ("taxa_mortalidade", "taxa_uti", "taxa_vacinacao", "taxa_aumento")
+
+
+def metric_value_parts(value) -> tuple[str, str]:
+    """Split a metric into ``(main, detail)`` for display.
+
+    ``main`` is the headline figure (e.g. ``"7.47%"`` or ``"+127 casos"``);
+    ``detail`` is an optional smaller note (e.g. ``"sem base p/ %"``) or ``""``.
+    The UI renders ``detail`` below the value in a smaller font; the report
+    joins both into a single line. Falls back to ``"0.00%"`` when no usable
+    value is available.
+    """
+    if value is None or isinstance(value, bool):
+        return "0.00%", ""
+    if isinstance(value, (int, float)):
+        return f"{value:.2f}%", ""
+    if isinstance(value, dict):
+        if "error" in value:
+            return "Erro", ""
+        for key in _RATE_KEYS:
+            if key in value:
+                rate = value[key]
+                if rate is not None:
+                    return f"{float(rate):.2f}%", ""
+                # No percentage base (previous week = 0 cases): report the
+                # absolute weekly variation plus an explanatory note.
+                atual = value.get("casos_semana_atual")
+                anterior = value.get("casos_semana_anterior")
+                if atual is not None and anterior is not None:
+                    delta = int(atual) - int(anterior)
+                    return f"{delta:+d} casos", "sem base p/ %"
+                return "0.00%", ""
+        # Unknown dict shape: use the first numeric value if any.
+        for v in value.values():
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                return f"{v:.2f}%", ""
+        return "0.00%", ""
+    return str(value), ""
+
+
+def format_metric_value(value) -> str:
+    """Single-line metric rendering for the report (markdown / PDF)."""
+    main, detail = metric_value_parts(value)
+    return f"{main} ({detail})" if detail else main
+
 
 _NON_LATIN1_REPLACEMENTS = {
     "\u2014": "-",  # em dash
@@ -96,7 +141,7 @@ class _SRAGReport(FPDF):
         self.ln(2)
         self._use_font(9)
         for key, label in METRIC_LABELS.items():
-            value = metrics.get(key, "N/A")
+            value = format_metric_value(metrics.get(key))
             self.cell(0, 6, self._t(f"  {label}: {value}"), new_x="LMARGIN", new_y="NEXT")
         self.ln(4)
 
@@ -138,12 +183,17 @@ class _SRAGReport(FPDF):
             data_ref: Description or URL of the data sources used.
         """
         self._use_font(9)
-        self.cell(0, 6, self._t(f"Fontes: {data_ref}"), new_x="LMARGIN", new_y="NEXT")
+        self.cell(
+            0,
+            6,
+            self._t(f"Fontes dos dados: DATASUS/SIVEP-Gripe (data de ref.: {data_ref})"),
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
 
 
 def _build_markdown(
     metrics: dict,
-    charts: dict,
     news: list[dict],
     analysis: str,
     data_ref: str,
@@ -163,18 +213,7 @@ def _build_markdown(
     lines.append("| Métrica | Valor |")
     lines.append("|---|---|")
     for key, label in METRIC_LABELS.items():
-        value = metrics.get(key, "N/A")
-        lines.append(f"| {label} | {value} |")
-    lines.append("")
-
-    lines.append("## Charts")
-    lines.append("")
-    daily = charts.get("daily", "")
-    monthly = charts.get("monthly", "")
-    if daily:
-        lines.append(f"![Daily cases]({daily})")
-    if monthly:
-        lines.append(f"![Monthly cases]({monthly})")
+        lines.append(f"| {label} | {format_metric_value(metrics.get(key))} |")
     lines.append("")
 
     if news:
@@ -187,9 +226,12 @@ def _build_markdown(
             lines.append(f"- [{source_tag}] {title} — {url}")
         lines.append("")
 
-    lines.append("## Fontes")
+    lines.append("## Fontes dos dados")
     lines.append("")
-    lines.append(data_ref)
+    lines.append(
+        "Dados epidemiológicos: DATASUS / SIVEP-Gripe — "
+        f"data de referência (última notificação): {data_ref}"
+    )
     lines.append("")
 
     lines.append("---")
@@ -207,7 +249,8 @@ def generate_report(
     data_ref: str,
     output_dir: str | None = None,
 ) -> dict:
-    md = _build_markdown(metrics, charts, news, analysis, data_ref)
+    # charts are shown interactively in the UI, not embedded in the report markdown
+    md = _build_markdown(metrics, news, analysis, data_ref)
 
     pdf_path = ""
     try:

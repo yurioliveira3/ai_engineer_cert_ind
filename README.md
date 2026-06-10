@@ -220,7 +220,7 @@ ruff check src/ tests/ scripts/
 ruff format src/ tests/ scripts/
 ```
 
-**Resultados atuais:** 109 testes unitários + 9 de integração = 118 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
+**Resultados atuais:** 99 testes unitários + 19 de integração = 118 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
 
 ## Estrutura do Projeto
 

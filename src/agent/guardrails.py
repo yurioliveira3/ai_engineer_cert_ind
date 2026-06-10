@@ -205,19 +205,19 @@ def validate_metrics(metrics: dict) -> dict:
 
     mortality = _extract_numeric(metrics.get("mortality_rate"))
     if mortality is not None and mortality > 50:
-        warnings.append(f"⚠ ALERTA: Taxa de mortalidade de {mortality}% está acima de 50%")
+        warnings.append(f"ALERTA: Taxa de mortalidade de {mortality}% está acima de 50%")
 
     icu_rate = _extract_numeric(metrics.get("icu_rate"))
     if icu_rate is not None and icu_rate > 100:
-        warnings.append(f"⚠ ALERTA: Taxa de UTI de {icu_rate}% acima de 100%")
+        warnings.append(f"ALERTA: Taxa de UTI de {icu_rate}% acima de 100%")
 
     vaccination = _extract_numeric(metrics.get("vaccination_rate"))
     if vaccination is not None and vaccination > 100:
-        warnings.append(f"⚠ ALERTA: Taxa de vacinação de {vaccination}% acima de 100%")
+        warnings.append(f"ALERTA: Taxa de vacinação de {vaccination}% acima de 100%")
 
     case_increase = _extract_numeric(metrics.get("case_increase_rate"))
     if case_increase is not None and case_increase > 500:
-        warnings.append(f"⚠ ALERTA: Taxa de aumento de {case_increase}% acima de 500%")
+        warnings.append(f"ALERTA: Taxa de aumento de {case_increase}% acima de 500%")
 
     if warnings:
         result["warnings"] = warnings

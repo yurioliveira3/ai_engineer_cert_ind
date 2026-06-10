@@ -90,51 +90,78 @@ class TestFormatMetricValue:
 
     def test_format_numeric_value(self):
         """Numeric values should be formatted as percentages with 2 decimals."""
-        from src.ui.app import format_metric_value
+        from src.agent.tools.report_tool import format_metric_value
 
         assert format_metric_value(7.47) == "7.47%"
 
     def test_format_none_value(self):
-        """None values should return 'N/A'."""
-        from src.ui.app import format_metric_value
+        """None values fall back to '0.00%'."""
+        from src.agent.tools.report_tool import format_metric_value
 
-        assert format_metric_value(None) == "N/A"
+        assert format_metric_value(None) == "0.00%"
 
     def test_format_dict_with_rate(self):
         """Dict values containing a rate key should extract and format it."""
-        from src.ui.app import format_metric_value
+        from src.agent.tools.report_tool import format_metric_value
 
         result = format_metric_value({"taxa_mortalidade": 7.47})
         assert "7.47" in result
 
     def test_format_dict_with_none_rate(self):
-        """Dict values with None rate should return 'N/A'."""
-        from src.ui.app import format_metric_value
+        """Dict with a None rate and no usable counts falls back to '0.00%'."""
+        from src.agent.tools.report_tool import format_metric_value
 
         result = format_metric_value({"taxa_aumento": None})
-        assert result == "N/A"
+        assert result == "0.00%"
+
+    def test_format_case_increase_without_base_shows_absolute_variation(self):
+        """When previous week is 0 (no % base), show absolute case variation."""
+        from src.agent.tools.report_tool import format_metric_value
+
+        result = format_metric_value(
+            {"casos_semana_atual": 127, "casos_semana_anterior": 0, "taxa_aumento": None}
+        )
+        assert result == "+127 casos (sem base p/ %)"
 
     def test_format_error_dict(self):
         """Dict with 'error' key should show error indicator."""
-        from src.ui.app import format_metric_value
+        from src.agent.tools.report_tool import format_metric_value
 
         result = format_metric_value({"error": "query failed"})
         assert "erro" in result.lower() or "error" in result.lower() or "?" in result
 
     def test_format_metric_value_with_zero(self):
         """format_metric_value(0.0) should return '0.00%'."""
-        from src.ui.app import format_metric_value
+        from src.agent.tools.report_tool import format_metric_value
 
         assert format_metric_value(0.0) == "0.00%"
 
     def test_format_metric_value_with_negative(self):
         """format_metric_value(-5.3) should return '-5.30%'."""
-        from src.ui.app import format_metric_value
+        from src.agent.tools.report_tool import format_metric_value
 
         assert format_metric_value(-5.3) == "-5.30%"
 
     def test_format_metric_value_empty_dict(self):
-        """format_metric_value({}) should return 'N/A'."""
-        from src.ui.app import format_metric_value
+        """format_metric_value({}) falls back to '0.00%'."""
+        from src.agent.tools.report_tool import format_metric_value
 
-        assert format_metric_value({}) == "N/A"
+        assert format_metric_value({}) == "0.00%"
+
+    def test_metric_value_parts_splits_detail(self):
+        """When there is no % base, parts split into value + smaller note."""
+        from src.agent.tools.report_tool import metric_value_parts
+
+        main, detail = metric_value_parts(
+            {"casos_semana_atual": 127, "casos_semana_anterior": 0, "taxa_aumento": None}
+        )
+        assert main == "+127 casos"
+        assert detail == "sem base p/ %"
+
+    def test_metric_value_parts_rate_has_no_detail(self):
+        """A normal rate has no detail note."""
+        from src.agent.tools.report_tool import metric_value_parts
+
+        main, detail = metric_value_parts({"taxa_mortalidade": 7.47})
+        assert main == "7.47%"
+        assert detail == ""

@@ -16,7 +16,11 @@ semana_anterior AS (
     AND caso_confirmado = true
 )
 SELECT sa.casos as casos_semana_atual, sp.casos as casos_semana_anterior,
-    ROUND(100.0 * (sa.casos - sp.casos) / NULLIF(sp.casos, 0), 2) as taxa_aumento
+    CASE
+        WHEN sp.casos = 0 AND sa.casos = 0 THEN 0
+        WHEN sp.casos = 0 THEN NULL
+        ELSE ROUND(100.0 * (sa.casos - sp.casos) / sp.casos, 2)
+    END as taxa_aumento
 FROM semana_atual sa, semana_anterior sp
 """
 

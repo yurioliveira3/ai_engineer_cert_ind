@@ -10,7 +10,7 @@ pgvector
 langchain-postgres>=0.0.12
 pandas>=2.0
 sentence-transformers>=3.0
-duckduckgo-search
+ddgs
 plotly>=5.0
 kaleido
 fpdf2

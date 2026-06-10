@@ -66,7 +66,10 @@ def generate_daily_cases_chart(data, output_dir=None, data_ref=None):
             font=dict(size=10, color="gray"),
         )
 
-    fig.write_image(filepath, width=800, height=400)
+    try:
+        fig.write_image(filepath, width=800, height=400)
+    except Exception:
+        filepath = ""
 
     return filepath, fig
 
@@ -132,6 +135,9 @@ def generate_monthly_cases_chart(data, output_dir=None, data_ref=None):
             font=dict(size=10, color="gray"),
         )
 
-    fig.write_image(filepath, width=800, height=400)
+    try:
+        fig.write_image(filepath, width=800, height=400)
+    except Exception:
+        filepath = ""
 
     return filepath, fig

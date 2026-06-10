@@ -18,12 +18,12 @@ from langgraph.graph.message import add_messages
 from sqlalchemy import create_engine
 
 from src.agent.guardrails import validate_metrics, validate_output_pii, validate_user_input
-from src.agent.logging_config import AgentAuditLogger
+from src.agent.logging_config import AgentAuditLogger, setup_logger
 from src.agent.prompts import render_prompt
 from src.agent.tools.chart_tool import generate_daily_cases_chart, generate_monthly_cases_chart
 from src.agent.tools.news_tool import search_and_index_news, semantic_search_news
 from src.agent.tools.report_tool import generate_report
-from src.agent.tools.sql_tool import execute_metric_query
+from src.agent.tools.sql_tool import execute_metric_query, execute_tabular_query, get_data_ref
 from src.config import Settings
 from src.llm.adapter import get_chat_model, safe_invoke
 
@@ -58,6 +58,7 @@ def calculate_metrics(
     """Execute all 4 metric SQL queries and daily/monthly temporal queries."""
     metrics = {}
     start = time.time()
+    logger.info("[node] calculate_metrics: executando %d queries de metricas", len(METRIC_NAMES))
 
     for metric_name in METRIC_NAMES:
         try:
@@ -67,13 +68,7 @@ def calculate_metrics(
             logger.warning(f"Metric {metric_name} failed: {e}")
             metrics[metric_name] = {"error": str(e)[:200]}
 
-    # Extract data_ref from the first metric result that has it
-    for metric_value in metrics.values():
-        if isinstance(metric_value, dict) and "data_ref" in metric_value:
-            metrics["data_ref"] = metric_value["data_ref"]
-            break
-    else:
-        metrics["data_ref"] = ""
+    metrics["data_ref"] = get_data_ref(settings)
 
     # Validate metric ranges
     validated = validate_metrics(metrics)
@@ -95,26 +90,29 @@ def generate_charts(state: AgentState, settings: Settings, audit_logger: AgentAu
     """Generate daily and monthly case charts."""
     charts = {}
     start = time.time()
+    logger.info("[node] generate_charts: gerando graficos diario (30d) e mensal (12m)")
+
+    data_ref = str(state.get("metrics", {}).get("data_ref", ""))
 
     try:
-        daily_result = execute_metric_query("daily_cases_30d", params={}, settings=settings)
-        daily_data = _parse_tabular_result(daily_result)
-        data_ref = str(state.get("metrics", {}).get("data_ref", ""))
-        daily_path, _ = generate_daily_cases_chart(daily_data, data_ref=data_ref)
-        charts["daily"] = daily_path
+        daily_data = execute_tabular_query("daily_cases_30d", params={}, settings=settings)
+        daily_path, daily_fig = generate_daily_cases_chart(daily_data, data_ref=data_ref)
+        charts["daily"] = {"path": daily_path, "fig_json": daily_fig.to_json()}
     except Exception as e:
         logger.warning(f"Daily chart failed: {e}")
-        charts["daily"] = ""
+        charts["daily"] = {"path": "", "fig_json": ""}
 
     try:
-        monthly_result = execute_metric_query("monthly_cases_12m", params={}, settings=settings)
-        monthly_data = _parse_tabular_result(monthly_result)
-        data_ref = str(state.get("metrics", {}).get("data_ref", ""))
-        monthly_path, _ = generate_monthly_cases_chart(monthly_data, data_ref=data_ref)
-        charts["monthly"] = monthly_path
+        monthly_raw = execute_tabular_query("monthly_cases_12m", params={}, settings=settings)
+        # monthly query returns column "mes"; chart expects "dt_notific"
+        monthly_data = [
+            {"dt_notific": r.get("mes"), "casos": r.get("casos")} for r in monthly_raw
+        ]
+        monthly_path, monthly_fig = generate_monthly_cases_chart(monthly_data, data_ref=data_ref)
+        charts["monthly"] = {"path": monthly_path, "fig_json": monthly_fig.to_json()}
     except Exception as e:
         logger.warning(f"Monthly chart failed: {e}")
-        charts["monthly"] = ""
+        charts["monthly"] = {"path": "", "fig_json": ""}
 
     duration_ms = int((time.time() - start) * 1000)
     audit_logger.log_decision(
@@ -150,6 +148,7 @@ def search_news_step(state: AgentState, settings: Settings, audit_logger: AgentA
         except ValueError:
             query = "SRAG Brasil epidemiologia"
 
+        logger.info("[node] search_news: buscando noticias (query=%r, max=5)", query)
         news = search_and_index_news(query, max_results=5, settings=settings)
 
         duration_ms = int((time.time() - start) * 1000)
@@ -185,6 +184,7 @@ def retrieve_semantic(
 
     try:
         query = "SRAG Brasil epidemiologia"
+        logger.info("[node] retrieve_semantic: busca semantica no pgvector (k=3)")
         news_semantic = semantic_search_news(query, k=3, settings=settings)
 
         duration_ms = int((time.time() - start) * 1000)
@@ -215,6 +215,7 @@ def retrieve_semantic(
 def analyze(state: AgentState, settings: Settings, audit_logger: AgentAuditLogger) -> dict:
     """Use LLM to analyze metrics and generate insights."""
     start = time.time()
+    logger.info("[node] analyze: invocando LLM para analise de metricas + noticias")
 
     try:
         metrics = state.get("metrics", {})
@@ -279,6 +280,7 @@ def analyze(state: AgentState, settings: Settings, audit_logger: AgentAuditLogge
 def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAuditLogger) -> dict:
     """Compile the final report from all gathered data."""
     start = time.time()
+    logger.info("[node] compile_report: compilando relatorio final (markdown + PDF)")
 
     try:
         metrics = state.get("metrics", {})
@@ -287,9 +289,14 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
         analysis = state.get("analysis", "")
         data_ref = str(metrics.get("data_ref", ""))
 
+        # report_tool expects {"daily": path, "monthly": path}
+        charts_paths = {
+            k: (v["path"] if isinstance(v, dict) else v) for k, v in charts.items()
+        }
+
         report = generate_report(
             metrics=metrics,
-            charts=charts,
+            charts=charts_paths,
             news=news,
             analysis=analysis,
             data_ref=data_ref,
@@ -351,27 +358,6 @@ def _parse_metric_result(result_text: str) -> dict:
     return result
 
 
-def _parse_tabular_result(result_text: str) -> list[dict]:
-    """Parse tabular SQL result into list of dicts for chart generation."""
-    lines = result_text.strip().split("\n")
-    if len(lines) < 2:
-        return []
-
-    data = []
-    for line in lines:
-        if line.startswith("Metric:") or "Execution time" in line:
-            continue
-        parts = {}
-        for item in line.strip().split("  "):
-            item = item.strip()
-            if ":" in item:
-                key, _, val = item.partition(":")
-                parts[key.strip()] = val.strip()
-        if parts:
-            data.append(parts)
-    return data
-
-
 def create_agent(settings: Settings = None):
     """Create and compile the SRAG Agent LangGraph.
 
@@ -383,6 +369,13 @@ def create_agent(settings: Settings = None):
         The agent is wrapped to start and end audit sessions automatically.
     """
     settings = settings or Settings()
+    log_level = getattr(logging, str(settings.log_level).upper(), logging.INFO)
+    setup_logger(level=log_level)
+    logger.info(
+        "Inicializando agente SRAG (provider=%s, model=%s)",
+        settings.llm_provider,
+        settings.llm_model,
+    )
 
     engine = create_engine(settings.database_url)
     audit_logger = AgentAuditLogger(

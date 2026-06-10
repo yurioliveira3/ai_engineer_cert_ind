@@ -46,6 +46,8 @@ def get_chat_model(settings: Settings):
         if "extra_headers" in provider:
             kwargs["default_headers"] = provider["extra_headers"]
 
+        kwargs.update(provider.get("extra_kwargs", {}))
+
         return ChatOpenAI(**kwargs)
 
     raise ValueError(f"Unsupported provider class: {provider['class']}")
