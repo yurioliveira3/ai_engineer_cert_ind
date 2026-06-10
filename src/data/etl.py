@@ -50,7 +50,6 @@ LABEL_MAPS = {
 CONFIRMED_CLASSI_FIN = [1, 2, 3, 4, 5]
 
 ENCODINGS_TO_TRY = ["latin-1", "utf-8", "cp1252"]
-SEPARATORS_TO_TRY = [";", ","]
 
 
 def _detect_csv_config(filepath: str | Path) -> tuple[str, str]:

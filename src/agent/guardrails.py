@@ -24,10 +24,6 @@ DESTRUCTIVE_KEYWORDS = [
     "REPLACE",
 ]
 
-DANGEROUS_PATTERNS = [
-    r";\s*\w",  # multi-statement
-]
-
 
 def validate_sql_safety(query: str) -> tuple[bool, str]:
     """Validate that a SQL query is safe to execute.

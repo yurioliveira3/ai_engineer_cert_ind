@@ -27,20 +27,6 @@ class TestEmbeddingsService:
             result = service.embed_query("teste de embedding")
             assert len(result) == 1024
 
-    def test_embed_texts_returns_list_of_vectors(self):
-        """embed_texts should return a list of vectors."""
-        with patch("src.data.embeddings.HuggingFaceEmbeddings") as mock_cls:
-            mock_instance = MagicMock()
-            mock_instance.embed_documents.return_value = [[0.1] * 1024, [0.2] * 1024]
-            mock_cls.return_value = mock_instance
-
-            from src.data.embeddings import EmbeddingsService
-
-            service = EmbeddingsService(model_name="BAAI/bge-large-en-v1.5")
-            result = service.embed_texts(["texto 1", "texto 2"])
-            assert len(result) == 2
-            assert len(result[0]) == 1024
-
 
 class TestNewsEmbeddingsRepository:
     def test_upsert_idempotent(self):

@@ -19,10 +19,6 @@ class EmbeddingsService:
         """Generate embedding for a single query string."""
         return self._model.embed_query(query)
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """Generate embeddings for a list of texts."""
-        return self._model.embed_documents(texts)
-
 
 class NewsEmbeddingsRepository:
     """Repository for storing and querying news embeddings in pgvector."""

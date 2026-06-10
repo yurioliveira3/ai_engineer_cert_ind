@@ -177,36 +177,6 @@ class TestAuditLogger:
         mock_conn.execute.assert_called()
         mock_conn.commit.assert_called()
 
-    def test_audit_logger_log_query_updates_session_id(self):
-        mock_engine = MagicMock()
-        mock_conn = MagicMock()
-        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
-        mock_conn.__exit__ = MagicMock(return_value=False)
-        mock_engine.connect.return_value = mock_conn
-
-        logger_instance = AgentAuditLogger(
-            engine=mock_engine,
-            llm_provider="ollama",
-            llm_model="llama3",
-        )
-        logger_instance.session_id = "my-test-session-id"
-        logger_instance.log_query(
-            query_text="SELECT 1",
-            query_hash="abc123",
-            exec_ms=42,
-            blocked=False,
-            reason=None,
-        )
-
-        mock_conn.execute.assert_called_once()
-        call_args = mock_conn.execute.call_args
-        params = call_args[0][1] if len(call_args[0]) > 1 else call_args[1]
-        assert params["sid"] == "my-test-session-id"
-        assert params["qt"] == "SELECT 1"
-        assert params["qh"] == "abc123"
-        assert params["ems"] == 42
-        mock_conn.commit.assert_called_once()
-
 
 class TestSqlSafetyEdgeCases:
     def test_select_star_without_where_blocked(self):
