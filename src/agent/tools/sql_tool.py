@@ -19,12 +19,18 @@ def _get_engine(settings: Settings = None):
 
 
 def _resolve_params(params: dict, engine) -> dict:
-    """Ensure data_ref is populated if not provided."""
+    """Ensure uf, data_ref, data_inicio and data_fim are populated.
+
+    ``uf`` defaults to None (whole country). ``data_ref`` defaults to
+    MAX(dt_notific) for the selected scope when not provided by the caller.
+    """
+    params.setdefault("uf", None)
+
     if "data_ref" not in params or params["data_ref"] is None:
         with engine.connect() as conn:
-            result = conn.execute(text(get_data_ref_query()))
+            result = conn.execute(text(get_data_ref_query()), {"uf": params["uf"]})
             params["data_ref"] = result.scalar()
-            logger.info(f"Resolved data_ref: {params['data_ref']}")
+            logger.info(f"Resolved data_ref: {params['data_ref']} (uf={params['uf']})")
 
     if "data_inicio" not in params:
         data_ref = params["data_ref"]
@@ -39,11 +45,11 @@ def _resolve_params(params: dict, engine) -> dict:
     return params
 
 
-def get_data_ref(settings: Settings = None) -> str:
-    """Return MAX(dt_notific) from srag_cases as a formatted string."""
+def get_data_ref(settings: Settings = None, uf: str | None = None) -> str:
+    """Return MAX(dt_notific) as a formatted string, optionally per state."""
     engine = _get_engine(settings)
     with engine.connect() as conn:
-        val = conn.execute(text(get_data_ref_query())).scalar()
+        val = conn.execute(text(get_data_ref_query()), {"uf": uf}).scalar()
     return val.strftime("%Y-%m-%d") if val else ""
 
 

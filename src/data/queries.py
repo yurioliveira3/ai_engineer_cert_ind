@@ -2,6 +2,8 @@
 
 All queries use :data_ref and :data_inicio/:data_fim as parameters.
 :data_ref defaults to MAX(dt_notific) from the dataset.
+An optional :uf parameter filters by notifying state (sg_uf_not); when it is
+NULL the whole country is considered.
 """
 
 QUERY_CASE_INCREASE_RATE = """
@@ -9,11 +11,13 @@ WITH semana_atual AS (
     SELECT COUNT(*) as casos FROM srag.srag_cases
     WHERE dt_notific BETWEEN :data_ref - INTERVAL '7 days' AND :data_ref
     AND caso_confirmado = true
+    AND (:uf IS NULL OR sg_uf_not = :uf)
 ),
 semana_anterior AS (
     SELECT COUNT(*) as casos FROM srag.srag_cases
     WHERE dt_notific BETWEEN :data_ref - INTERVAL '14 days' AND :data_ref - INTERVAL '7 days'
     AND caso_confirmado = true
+    AND (:uf IS NULL OR sg_uf_not = :uf)
 )
 SELECT sa.casos as casos_semana_atual, sp.casos as casos_semana_anterior,
     CASE
@@ -33,6 +37,7 @@ SELECT
 FROM srag.srag_cases
 WHERE caso_confirmado = true
 AND dt_notific BETWEEN :data_inicio AND :data_fim
+AND (:uf IS NULL OR sg_uf_not = :uf)
 """
 
 QUERY_ICU_RATE = """
@@ -43,6 +48,7 @@ SELECT
 FROM srag.srag_cases
 WHERE caso_confirmado = true
 AND dt_notific BETWEEN :data_inicio AND :data_fim
+AND (:uf IS NULL OR sg_uf_not = :uf)
 """
 
 QUERY_VACCINATION_RATE = """
@@ -53,6 +59,7 @@ SELECT
 FROM srag.srag_cases
 WHERE caso_confirmado = true AND ano_notificacao >= 2021
 AND dt_notific BETWEEN :data_inicio AND :data_fim
+AND (:uf IS NULL OR sg_uf_not = :uf)
 """
 
 QUERY_DAILY_CASES_30D = """
@@ -62,6 +69,7 @@ SELECT
 FROM srag.srag_cases
 WHERE caso_confirmado = true
 AND dt_notific BETWEEN :data_ref - INTERVAL '30 days' AND :data_ref
+AND (:uf IS NULL OR sg_uf_not = :uf)
 GROUP BY dt_notific
 ORDER BY dt_notific
 """
@@ -73,14 +81,22 @@ SELECT
 FROM srag.srag_cases
 WHERE caso_confirmado = true
 AND dt_notific BETWEEN :data_ref - INTERVAL '12 months' AND :data_ref
+AND (:uf IS NULL OR sg_uf_not = :uf)
 GROUP BY DATE_TRUNC('month', dt_notific)
 ORDER BY mes
 """
 
 
 def get_data_ref_query() -> str:
-    """Return query to get the maximum notification date for data_ref."""
-    return "SELECT MAX(dt_notific) FROM srag.srag_cases"
+    """Return query for the maximum notification date, optionally per state.
+
+    Uses a :uf bind (NULL = whole country) so the reference date reflects the
+    latest notification available for the selected scope.
+    """
+    return (
+        "SELECT MAX(dt_notific) FROM srag.srag_cases "
+        "WHERE (:uf IS NULL OR sg_uf_not = :uf)"
+    )
 
 
 METRIC_QUERIES = {

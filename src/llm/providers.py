@@ -38,3 +38,13 @@ PROVIDERS = {
         "extra_kwargs": dict(_FACTUAL_SAMPLING),
     },
 }
+
+
+def get_sampling_params(provider: str) -> dict:
+    """Return the sampling params (temperature/top_p/top_k) for a provider.
+
+    Only the keys actually configured are returned (top_k applies to Gemini
+    only). Used by the UI to display the active generation settings.
+    """
+    extra = PROVIDERS.get(provider, {}).get("extra_kwargs", {})
+    return {k: extra[k] for k in ("temperature", "top_p", "top_k") if k in extra}

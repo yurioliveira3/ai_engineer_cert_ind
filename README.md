@@ -55,7 +55,7 @@ Cada etapa é auditada com `AgentAuditLogger`, e guardrails protegem contra inje
 | LangChain | 0.3+ | Framework LLM | Provider-agnostic, tool calling |
 | Gemini 2.5 Flash | default | LLM provider | Custo-benefício, tool calling estável |
 | HuggingFace BGE | bge-large-en-v1.5 | Embeddings (1024-dim) | Busca semântica em notícias |
-| DuckDuckGo Search | — | Busca de notícias | Gratuito, sem API key |
+| DuckDuckGo (`ddgs`) | — | Busca de notícias | Gratuito, sem API key; termo regionalizável por UF |
 | Plotly + kaleido | 5.0+ | Gráficos | Interativo no Streamlit, estático no PDF |
 | fpdf2 | — | Geração de PDF | Leve, suporte UTF-8 |
 | Streamlit | 1.30+ | Interface web | Dashboard com métricas, gráficos, relatório e auditoria |
@@ -182,6 +182,8 @@ Dados epidemiológicos de SRAG do DATASUS/SIVEP-Gripe, baixados diretamente do S
 
 > **Nota:** A taxa de UTI é a proporção de internados que foram para UTI, não a ocupação de leitos. Ocupação de leitos não está disponível no SIVEP-Gripe.
 
+> **Nota:** A taxa de aumento de casos não tem base percentual quando a semana anterior tem 0 casos (comum perto do `MAX(dt_notific)`, onde os dados ainda são esparsos por atraso de notificação). Nesse caso, a interface e o relatório exibem a **variação absoluta** (ex.: `+127 casos`) em vez de um percentual. Quando ambas as semanas têm 0 casos, o valor é `0,00%`.
+
 ### Privacidade dos dados
 
 Veja [docs/data_privacy.md](docs/data_privacy.md) para detalhes sobre:
@@ -189,6 +191,29 @@ Veja [docs/data_privacy.md](docs/data_privacy.md) para detalhes sobre:
 - Colunas retidas apenas com agregação (NU_IDADE_N, ID_MN_RESI, CS_RACA)
 - Conformidade com LGPD
 - Guardrails de output (filtro de CPF, telefone, email)
+
+## Filtros e parâmetros
+
+### Filtros da interface (UF e data de referência)
+
+A sidebar do Streamlit oferece dois filtros que são propagados de ponta a ponta (UI → `run_agent` → estado do agente → queries):
+
+- **UF (Unidade Federativa)**: filtra os dados por estado de notificação (`sg_uf_not`). `Todos` considera o Brasil inteiro. Aplica-se às métricas, aos gráficos e, como contexto, ao termo de busca de notícias (ex.: `SRAG São Paulo epidemiologia`).
+- **Data de referência**: quando informada, é usada como `data_ref` nas janelas das queries; quando vazia, usa-se `MAX(dt_notific)` do escopo selecionado (global ou da UF).
+
+> As notícias são buscadas na web (DuckDuckGo) e, embora o termo seja regionalizado pela UF, não há filtro geográfico rígido — elas funcionam como contexto qualitativo.
+
+### Parâmetros de geração do LLM
+
+Ajustados para análise factual e ancorada (dados + notícias), não geração criativa. Definidos por provider em `src/llm/providers.py` e exibidos no expander de auditoria da UI (via `get_sampling_params`):
+
+| Parâmetro | Valor | Observação |
+|-----------|-------|------------|
+| `temperature` | `0.2` | Baixa, mais determinística |
+| `top_p` | `0.85` | Nucleus sampling reduzido |
+| `top_k` | `20` | Apenas Gemini (não faz parte da API OpenAI padrão) |
+
+O uso de tokens de cada chamada LLM é extraído do `usage_metadata` do provider (com estimativa de fallback) e registrado em `audit.llm_calls` e nos logs.
 
 ## Guardrails
 
@@ -202,6 +227,10 @@ O agente implementa 4 camadas de proteção:
 **Busca de notícias**: DuckDuckGo com `region="br-pt"`, máximo de 5 resultados por busca, classificação automática de fontes (confiáveis vs. não-verificadas), rate limiting (`max_results > 5` rejeitado).
 
 Todas as queries SQL são logadas em `audit.query_history` com hash SHA-256. Cada execução do agente cria uma sessão auditada com logs de decisão em `audit.agent_decisions` e chamadas LLM em `audit.llm_calls`.
+
+### Observabilidade (logging)
+
+Além da auditoria no banco, o `AgentAuditLogger` emite um **trace verboso** no console e em arquivo rotativo diário (`data/logs/srag_agent.log`). O `setup_logger` configura o logger-raiz do pacote (`src`) com `propagate=False` (evita duplicação sob o Streamlit) e silencia bibliotecas ruidosas. O trace mostra o fluxo de tool calls do agente — início de cada nó, `[tool-call]` (step/ferramenta/status/duração), `[llm-call]` (prompt/hash/tokens) e `[sql]` —, controlado por `LOG_LEVEL`.
 
 ## Testes
 
@@ -220,7 +249,7 @@ ruff check src/ tests/ scripts/
 ruff format src/ tests/ scripts/
 ```
 
-**Resultados atuais:** 99 testes unitários + 19 de integração = 118 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
+**Resultados atuais:** 102 testes unitários + 19 de integração = 121 total, 0 erros, ruff limpo (regras: E, F, I, N, W, UP, B, SIM, T20, RUF).
 
 ## Estrutura do Projeto
 
@@ -240,30 +269,30 @@ srag-agent/
 ├── src/
 │   ├── config.py              # Settings (Pydantic BaseSettings)
 │   ├── llm/
-│   │   ├── adapter.py         # get_chat_model, get_embeddings, safe_invoke
-│   │   └── providers.py       # Dict de providers (gemini, openrouter, groq, ollama)
+│   │   ├── adapter.py         # get_chat_model, get_embeddings, safe_invoke, get_token_usage
+│   │   └── providers.py       # Providers + sampling factual (temperature/top_p/top_k), get_sampling_params
 │   ├── data/
 │   │   ├── etl.py             # CSV load, clean, PII removal, labels
 │   │   ├── models.py          # SragCase SQLAlchemy model
-│   │   ├── queries.py         # 6 SQL templates parametrizados
-│   │   └── embeddings.py      # EmbeddingsService + NewsEmbeddingsRepository
+│   │   ├── queries.py         # 6 SQL templates parametrizados (data_ref + filtro :uf opcional)
+│   │   └── embeddings.py      # EmbeddingsService + NewsEmbeddingsRepository (CAST :embedding AS vector)
 │   ├── agent/
-│   │   ├── orchestrator.py    # LangGraph StateGraph (SRAGAgent)
+│   │   ├── orchestrator.py    # LangGraph StateGraph (SRAGAgent); filtros UF/data, news regional, setup do logging
 │   │   ├── guardrails.py      # SQL safety, input/output validation, PII filter
-│   │   ├── logging_config.py  # AgentAuditLogger, setup_logger, audit_step (definido, não usado pelo orquestrador)
+│   │   ├── logging_config.py  # AgentAuditLogger (trace verboso), setup_logger
 │   │   ├── prompts/
 │   │   │   ├── __init__.py    # load_prompt, render_prompt (SHA-256)
 │   │   │   ├── system.txt     # Prompt do sistema
 │   │   │   ├── analyze_metrics.txt  # Prompt de análise
 │   │   │   └── news_query_gen.txt   # Prompt de geração de queries
 │   │   └── tools/
-│   │       ├── sql_tool.py     # execute_metric_query (4 métricas analíticas + 2 temporais p/ gráficos)
-│   │       ├── news_tool.py    # search_and_index_news, semantic_search_news
-│   │       ├── chart_tool.py   # generate_daily/monthly_cases_chart
-│   │       └── report_tool.py  # generate_report (markdown + PDF)
+│   │       ├── sql_tool.py     # execute_metric_query, execute_tabular_query, get_data_ref (4 métricas + 2 temporais)
+│   │       ├── news_tool.py    # search_and_index_news (ddgs, output_format=list), semantic_search_news
+│   │       ├── chart_tool.py   # generate_daily/monthly_cases_chart (write_image tolerante a falha)
+│   │       └── report_tool.py  # generate_report (markdown + PDF), format_metric_value / metric_value_parts
 │   └── ui/
-│       └── app.py             # Dashboard Streamlit com métricas, gráficos, download PDF, auditoria
-├── tests/                      # 12 arquivos de teste, 118 testes
+│       └── app.py             # Dashboard Streamlit: filtros (UF/data), métricas, gráficos (Plotly), PDF, auditoria
+├── tests/                      # 11 arquivos de teste, 121 testes
 ├── scripts/
 │   ├── download_srag_data.py  # Download CSVs do DATASUS S3
 │   ├── seed_db.py             # Carga no PostgreSQL
