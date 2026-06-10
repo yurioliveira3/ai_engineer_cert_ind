@@ -91,3 +91,27 @@ def safe_invoke(model, prompt: str, retries: int = 5, backoff_factor: int = 2):
                 time.sleep(wait)
 
     raise last_error
+
+
+def _estimate_tokens(text: str) -> int:
+    """Rough token estimate (~4 characters per token) used as a fallback."""
+    return max(1, len(text) // 4) if text else 0
+
+
+def get_token_usage(response, prompt: str = "") -> tuple[int, int]:
+    """Return ``(input_tokens, output_tokens)`` for an LLM response.
+
+    Prefers the provider-reported ``usage_metadata`` (exact token counts, e.g.
+    from Gemini). Falls back to a ~4-chars-per-token estimate for whichever
+    side the provider does not report.
+    """
+    usage = getattr(response, "usage_metadata", None) or {}
+    tokens_in = int(usage.get("input_tokens") or 0)
+    tokens_out = int(usage.get("output_tokens") or 0)
+
+    if not tokens_in:
+        tokens_in = _estimate_tokens(prompt)
+    if not tokens_out:
+        tokens_out = _estimate_tokens(getattr(response, "content", "") or "")
+
+    return tokens_in, tokens_out

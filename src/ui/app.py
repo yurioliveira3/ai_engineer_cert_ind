@@ -14,6 +14,7 @@ import streamlit as st
 from src.agent.orchestrator import SRAGAgent, create_agent
 from src.agent.tools.report_tool import metric_value_parts
 from src.config import Settings
+from src.llm.providers import get_sampling_params
 
 # ─── Metric labels (Portuguese) ──────────────────────────────────────────────
 
@@ -28,11 +29,13 @@ METRIC_LABELS = {
 # report render metrics consistently (rates as %, absolute variation fallback).
 
 
-def run_agent(settings: Settings) -> dict:
+def run_agent(settings: Settings, uf: str | None = None, data_ref=None) -> dict:
     """Create and run the SRAG agent, returning the full result state.
 
     Args:
         settings: Application settings for DB and LLM configuration.
+        uf: Optional notifying state filter ("Todos" / None = whole country).
+        data_ref: Optional reference date (defaults to MAX(dt_notific)).
 
     Returns:
         Dict with report_markdown, report_pdf_path, metrics, charts, etc.
@@ -41,7 +44,13 @@ def run_agent(settings: Settings) -> dict:
         RuntimeError: If the agent fails to execute.
     """
     agent: SRAGAgent = create_agent(settings)
-    result = agent.invoke({"messages": [("user", "Gere o relatório SRAG")]})
+    result = agent.invoke(
+        {
+            "messages": [("user", "Gere o relatório SRAG")],
+            "uf": uf,
+            "data_ref": data_ref,
+        }
+    )
     return result
 
 
@@ -130,7 +139,7 @@ def main():
 
         with st.spinner("Gerando relatório... Isso pode levar até 1 minuto."):
             try:
-                result = run_agent(settings)
+                result = run_agent(settings, uf=uf, data_ref=data_ref)
                 st.session_state["report"] = result
                 st.session_state["error"] = None
             except Exception as e:
@@ -234,6 +243,7 @@ def main():
             {
                 "llm_provider": llm_provider,
                 "llm_model": llm_model,
+                **get_sampling_params(llm_provider),
                 "uf": uf,
                 "data_ref": str(data_ref) if data_ref else "MAX(dt_notific)",
             }

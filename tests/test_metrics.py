@@ -185,7 +185,7 @@ class TestDataRef:
         import datetime
 
         with engine.connect() as conn:
-            result = conn.execute(text(get_data_ref_query()))
+            result = conn.execute(text(get_data_ref_query()), {"uf": None})
             data_ref = result.scalar()
 
         assert data_ref is not None, "MAX(dt_notific) returned NULL — no data in DB?"

@@ -25,7 +25,7 @@ from src.agent.tools.news_tool import search_and_index_news, semantic_search_new
 from src.agent.tools.report_tool import generate_report
 from src.agent.tools.sql_tool import execute_metric_query, execute_tabular_query, get_data_ref
 from src.config import Settings
-from src.llm.adapter import get_chat_model, safe_invoke
+from src.llm.adapter import get_chat_model, get_token_usage, safe_invoke
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,38 @@ METRIC_NAMES = [
     "icu_rate",
     "vaccination_rate",
 ]
+
+# UF code -> full state name, used to regionalise the news search term
+# (web search works better with the full name than with the two-letter code).
+UF_NAMES = {
+    "AC": "Acre",
+    "AL": "Alagoas",
+    "AP": "Amapá",
+    "AM": "Amazonas",
+    "BA": "Bahia",
+    "CE": "Ceará",
+    "DF": "Distrito Federal",
+    "ES": "Espírito Santo",
+    "GO": "Goiás",
+    "MA": "Maranhão",
+    "MT": "Mato Grosso",
+    "MS": "Mato Grosso do Sul",
+    "MG": "Minas Gerais",
+    "PA": "Pará",
+    "PB": "Paraíba",
+    "PR": "Paraná",
+    "PE": "Pernambuco",
+    "PI": "Piauí",
+    "RJ": "Rio de Janeiro",
+    "RN": "Rio Grande do Norte",
+    "RS": "Rio Grande do Sul",
+    "RO": "Rondônia",
+    "RR": "Roraima",
+    "SC": "Santa Catarina",
+    "SP": "São Paulo",
+    "SE": "Sergipe",
+    "TO": "Tocantins",
+}
 
 
 class AgentState(TypedDict):
@@ -50,6 +82,53 @@ class AgentState(TypedDict):
     report_pdf_path: str
     error: str | None
     session_id: str
+    # UI filters (optional): notifying state (UF) and reference date. When
+    # absent, the agent uses the whole country and MAX(dt_notific).
+    uf: str | None
+    data_ref: str | None
+
+
+def _filter_params(state: AgentState) -> dict:
+    """Build SQL query params from the UI filters carried in the state.
+
+    May contain ``uf`` (notifying state) and ``data_ref`` (reference date).
+    Empty when no filter is active (whole country, latest available date).
+    """
+    params: dict = {}
+    uf = state.get("uf")
+    if uf and uf != "Todos":
+        params["uf"] = uf
+    data_ref = state.get("data_ref")
+    if data_ref:
+        params["data_ref"] = data_ref
+    return params
+
+
+def _news_query(state: AgentState) -> str:
+    """Build the news search query.
+
+    Regionalised by the UF filter when set (e.g. "SRAG São Paulo epidemiologia");
+    otherwise derived from the user message (validated against prompt injection)
+    with a national fallback.
+    """
+    uf = state.get("uf")
+    if uf and uf != "Todos":
+        return f"SRAG {UF_NAMES.get(uf, uf)} epidemiologia"
+
+    user_msg = ""
+    for msg in state.get("messages", []):
+        if hasattr(msg, "type") and msg.type == "human":
+            user_msg = msg.content
+            break
+        if isinstance(msg, tuple) and msg[0] == "user":
+            user_msg = msg[1]
+            break
+
+    query = user_msg or "SRAG Brasil epidemiologia"
+    try:
+        return validate_user_input(query)
+    except ValueError:
+        return "SRAG Brasil epidemiologia"
 
 
 def calculate_metrics(
@@ -58,17 +137,28 @@ def calculate_metrics(
     """Execute all 4 metric SQL queries and daily/monthly temporal queries."""
     metrics = {}
     start = time.time()
-    logger.info("[node] calculate_metrics: executando %d queries de metricas", len(METRIC_NAMES))
+    base_params = _filter_params(state)
+    logger.info(
+        "[node] calculate_metrics: %d queries de metricas (uf=%s, data_ref=%s)",
+        len(METRIC_NAMES),
+        base_params.get("uf", "Todos"),
+        base_params.get("data_ref", "MAX(dt_notific)"),
+    )
 
     for metric_name in METRIC_NAMES:
         try:
-            result_text = execute_metric_query(metric_name, params={}, settings=settings)
+            result_text = execute_metric_query(
+                metric_name, params=dict(base_params), settings=settings
+            )
             metrics[metric_name] = _parse_metric_result(result_text)
         except Exception as e:
             logger.warning(f"Metric {metric_name} failed: {e}")
             metrics[metric_name] = {"error": str(e)[:200]}
 
-    metrics["data_ref"] = get_data_ref(settings)
+    if base_params.get("data_ref"):
+        metrics["data_ref"] = str(base_params["data_ref"])
+    else:
+        metrics["data_ref"] = get_data_ref(settings, uf=base_params.get("uf"))
 
     # Validate metric ranges
     validated = validate_metrics(metrics)
@@ -90,12 +180,18 @@ def generate_charts(state: AgentState, settings: Settings, audit_logger: AgentAu
     """Generate daily and monthly case charts."""
     charts = {}
     start = time.time()
-    logger.info("[node] generate_charts: gerando graficos diario (30d) e mensal (12m)")
+    base_params = _filter_params(state)
+    logger.info(
+        "[node] generate_charts: graficos diario (30d) e mensal (12m) (uf=%s)",
+        base_params.get("uf", "Todos"),
+    )
 
     data_ref = str(state.get("metrics", {}).get("data_ref", ""))
 
     try:
-        daily_data = execute_tabular_query("daily_cases_30d", params={}, settings=settings)
+        daily_data = execute_tabular_query(
+            "daily_cases_30d", params=dict(base_params), settings=settings
+        )
         daily_path, daily_fig = generate_daily_cases_chart(daily_data, data_ref=data_ref)
         charts["daily"] = {"path": daily_path, "fig_json": daily_fig.to_json()}
     except Exception as e:
@@ -103,7 +199,9 @@ def generate_charts(state: AgentState, settings: Settings, audit_logger: AgentAu
         charts["daily"] = {"path": "", "fig_json": ""}
 
     try:
-        monthly_raw = execute_tabular_query("monthly_cases_12m", params={}, settings=settings)
+        monthly_raw = execute_tabular_query(
+            "monthly_cases_12m", params=dict(base_params), settings=settings
+        )
         # monthly query returns column "mes"; chart expects "dt_notific"
         monthly_data = [
             {"dt_notific": r.get("mes"), "casos": r.get("casos")} for r in monthly_raw
@@ -132,22 +230,7 @@ def search_news_step(state: AgentState, settings: Settings, audit_logger: AgentA
     start = time.time()
 
     try:
-        user_msg = ""
-        for msg in state.get("messages", []):
-            if hasattr(msg, "type") and msg.type == "human":
-                user_msg = msg.content
-                break
-            elif isinstance(msg, tuple) and msg[0] == "user":
-                user_msg = msg[1]
-                break
-
-        query = user_msg if user_msg else "SRAG Brasil epidemiologia"
-
-        try:
-            query = validate_user_input(query)
-        except ValueError:
-            query = "SRAG Brasil epidemiologia"
-
+        query = _news_query(state)
         logger.info("[node] search_news: buscando noticias (query=%r, max=5)", query)
         news = search_and_index_news(query, max_results=5, settings=settings)
 
@@ -183,8 +266,10 @@ def retrieve_semantic(
     start = time.time()
 
     try:
-        query = "SRAG Brasil epidemiologia"
-        logger.info("[node] retrieve_semantic: busca semantica no pgvector (k=3)")
+        query = _news_query(state)
+        logger.info(
+            "[node] retrieve_semantic: busca semantica no pgvector (k=3, query=%r)", query
+        )
         news_semantic = semantic_search_news(query, k=3, settings=settings)
 
         duration_ms = int((time.time() - start) * 1000)
@@ -238,6 +323,7 @@ def analyze(state: AgentState, settings: Settings, audit_logger: AgentAuditLogge
 
         model = get_chat_model(settings)
         response = safe_invoke(model, prompt)
+        tokens_in, tokens_out = get_token_usage(response, prompt)
 
         # Log LLM call
         audit_logger.log_llm_call(
@@ -245,8 +331,8 @@ def analyze(state: AgentState, settings: Settings, audit_logger: AgentAuditLogge
             prompt_file="analyze_metrics.txt",
             prompt_hash=prompt_hash,
             response_summary=response.content[:200],
-            tokens_in=0,
-            tokens_out=0,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
             duration_ms=int((time.time() - start) * 1000),
         )
 
