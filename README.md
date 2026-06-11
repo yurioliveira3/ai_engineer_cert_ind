@@ -51,16 +51,16 @@ Cada etapa é auditada com `AgentAuditLogger`, e guardrails protegem contra inje
 |-----------|---------|-----------|---------------|
 | Python | 3.11+ | Linguagem principal | Ecossistema rico para dados e IA |
 | PostgreSQL + pgvector | 16 | Banco de dados com busca vetorial | SQL + embeddings no mesmo banco |
-| LangGraph | 0.4+ | Orquestração do agente | Fluxo sequencial com estado tipado |
-| LangChain | 0.3+ | Framework LLM | Provider-agnostic, tool calling |
+| LangGraph | ~1.2 | Orquestração do agente | Fluxo sequencial com estado tipado |
+| LangChain | ~1.3 | Framework LLM | Provider-agnostic, tool calling |
 | Gemini 2.5 Flash | default | LLM provider | Custo-benefício, tool calling estável |
 | HuggingFace BGE | bge-large-en-v1.5 | Embeddings (1024-dim) | Busca semântica em notícias |
-| DuckDuckGo (`ddgs`) | — | Busca de notícias | Gratuito, sem API key; termo regionalizável por UF |
-| Plotly + kaleido | 5.0+ | Gráficos | Interativo no Streamlit, estático no PDF |
-| fpdf2 | — | Geração de PDF | Leve, suporte UTF-8 |
-| Streamlit | 1.30+ | Interface web | Dashboard com métricas, gráficos, relatório e auditoria |
-| SQLAlchemy | 2.0+ | ORM e queries | Conexão com PostgreSQL |
-| Pydantic | 2.0+ | Configuração | Validação de settings |
+| DuckDuckGo (`ddgs`) | ~9.14 | Busca de notícias | Gratuito, sem API key; termo regionalizável por UF |
+| Plotly + kaleido | ~6.8 / 0.2.x | Gráficos | Interativo no Streamlit, estático no PDF (kaleido <1.0 para headless) |
+| fpdf2 | ~2.8 | Geração de PDF | Leve, suporte UTF-8 |
+| Streamlit | ~1.58 | Interface web | Dashboard com métricas, gráficos, relatório e auditoria |
+| SQLAlchemy | ~2.0 | ORM e queries | Conexão com PostgreSQL |
+| Pydantic | ~2.13 | Configuração | Validação de settings |
 
 ## Início Rápido
 
@@ -84,8 +84,8 @@ cp .env.example .env
 # 3. Suba o PostgreSQL com pgvector
 docker compose up -d srag-db
 
-# 4. Instale as dependências
-pip install -e .
+# 4. Instale as dependências de desenvolvimento (inclui pytest, ruff, mypy)
+pip install -r requirements-dev.txt
 
 # 5. Baixe os dados do DATASUS
 python scripts/download_srag_data.py --all
@@ -99,14 +99,15 @@ python scripts/validate_data.py
 # 8. Teste a conectividade LLM
 python scripts/test_llm.py
 
-# 9. Execute o agente via CLI
+# 9. Suba a aplicação completa via Docker
+docker compose up -d
+# Acesse: http://localhost:8501
+
+# (alternativo) Execute via CLI sem Docker
 python scripts/run_agent.py
 
-# 10. Ou inicie a interface web
+# (alternativo) Inicie a interface web localmente sem Docker
 streamlit run src/ui/app.py
-
-# Docker (opcional)
-docker compose up -d
 ```
 
 ### Operações Docker
@@ -254,12 +255,12 @@ mypy src/
 A suíte unitária roda com `pytest-cov` por padrão (`addopts` no `pyproject.toml`) e
 aplica um **budget** via `--cov-fail-under`: o comando falha se a cobertura cair abaixo
 do limite (`fail_under = 75` em `[tool.coverage.report]`). O budget é calibrado sobre a
-suíte unitária (~79%); módulos que dependem de banco/modelo (`sql_tool`, `embeddings`)
+suíte unitária (80.44%); módulos que dependem de banco/modelo (`sql_tool`, `embeddings`)
 são exercitados pela suíte de integração. A UI Streamlit e o model declarativo são
 omitidos da medição.
 
-**Resultados atuais:** 116 testes unitários + 19 de integração = 135 total; cobertura
-unitária ~79% (budget 75%); ruff limpo (E, F, I, N, W, UP, B, SIM, T20, RUF); mypy sem
+**Resultados atuais:** 129 testes unitários + 19 de integração = 148 total; cobertura
+unitária 80.44% (budget 75%); ruff limpo (E, F, I, N, W, UP, B, SIM, T20, RUF); mypy sem
 erros (config leve, não-strict).
 
 ## Estrutura do Projeto
@@ -268,7 +269,8 @@ erros (config leve, não-strict).
 srag-agent/
 ├── docker-compose.yml          # PostgreSQL + pgvector (porta 5433)
 ├── Dockerfile                  # Container da aplicação (porta 8501)
-├── requirements.txt            # Dependências Python
+├── requirements.txt            # Dependências de runtime (instaladas no container)
+├── requirements-dev.txt        # Ferramentas de dev: pytest, ruff, mypy (NÃO no container)
 ├── pyproject.toml              # Config do projeto (ruff, pytest, coverage+budget, mypy)
 ├── .env.example                # Template de variáveis de ambiente
 ├── db/init-scripts/            # 5 scripts SQL de inicialização
@@ -280,7 +282,7 @@ srag-agent/
 ├── src/
 │   ├── config.py              # Settings (Pydantic BaseSettings)
 │   ├── llm/
-│   │   ├── adapter.py         # get_chat_model, get_embeddings, safe_invoke, get_token_usage
+│   │   ├── adapter.py         # get_chat_model, safe_invoke (system+user), get_token_usage
 │   │   └── providers.py       # Providers + sampling factual (temperature/top_p/top_k), get_sampling_params
 │   ├── data/
 │   │   ├── etl.py             # CSV load, clean, PII removal, labels
@@ -298,11 +300,11 @@ srag-agent/
 │   │   └── tools/
 │   │       ├── sql_tool.py     # execute_metric_query, execute_tabular_query, get_data_ref (4 métricas + 2 temporais)
 │   │       ├── news_tool.py    # search_and_index_news (ddgs, output_format=list), semantic_search_news
-│   │       ├── chart_tool.py   # generate_daily/monthly_cases_chart (write_image tolerante a falha)
+│   │       ├── chart_tool.py   # generate_daily/monthly_cases_chart (média móvel 7d, anotação de pico, write_image tolerante a falha)
 │   │       └── report_tool.py  # generate_report (markdown + PDF), format_metric_value / metric_value_parts
 │   └── ui/
 │       └── app.py             # Dashboard Streamlit: filtros (UF/data), métricas, gráficos (Plotly), PDF, auditoria
-├── tests/                      # 11 arquivos de teste, 121 testes
+├── tests/                      # 12 arquivos de teste, 148 testes (129 unit + 19 integration)
 ├── scripts/
 │   ├── download_srag_data.py  # Download CSVs do DATASUS S3
 │   ├── seed_db.py             # Carga no PostgreSQL

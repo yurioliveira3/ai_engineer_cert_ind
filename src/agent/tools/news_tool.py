@@ -73,6 +73,10 @@ def _make_repo(settings):
 
     from src.data.embeddings import EmbeddingsService, NewsEmbeddingsRepository
 
+    # TODO: EmbeddingsService is instantiated once here (search_and_index_news) and
+    # again in semantic_search_news, causing the model to load from disk twice per run
+    # (~6s overhead). Future improvement: create a single shared instance in
+    # create_agent() and inject it into both steps.
     engine = create_engine(settings.database_url)
     emb_service = EmbeddingsService(model_name=settings.embedding_model)
     return NewsEmbeddingsRepository(engine, emb_service)

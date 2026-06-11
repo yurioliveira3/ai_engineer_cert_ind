@@ -127,11 +127,12 @@ def main():
     data_ref = st.sidebar.date_input(
         "Data de referência",
         value=None,
+        format="DD/MM/YYYY",
         help="Deixe vazio para usar MAX(dt_notific) do dataset.",
     )
 
     # ─── Main content ────────────────────────────────────────────────────
-    if st.sidebar.button("🚀 Gerar Relatório", type="primary", use_container_width=True):
+    if st.sidebar.button("Gerar Relatório", type="primary", width="stretch"):
         settings = Settings(
             llm_provider=llm_provider,
             llm_model=llm_model,
@@ -181,7 +182,7 @@ def main():
         path = info.get("path", "") if isinstance(info, dict) else info
         with col:
             if fig_json:
-                st.plotly_chart(pio.from_json(fig_json), use_container_width=True)
+                st.plotly_chart(pio.from_json(fig_json), width="stretch")
             elif path and os.path.exists(path):
                 st.image(path, caption=caption)
 

@@ -7,6 +7,12 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY requirements.txt .
+
+# Install torch CPU-only before the rest to prevent pip from pulling the full
+# CUDA/nvidia/triton stack (~3.5 GB) which is never used in this container.
+RUN pip install --no-cache-dir \
+    torch --index-url https://download.pytorch.org/whl/cpu
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ src/

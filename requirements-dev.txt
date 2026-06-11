@@ -1,0 +1,8 @@
+# Development-only tools — NOT installed in the Docker container.
+# Install locally: pip install -r requirements-dev.txt
+-r requirements.txt
+pytest~=9.0
+pytest-asyncio~=1.4
+pytest-cov~=7.1
+mypy~=2.1
+ruff~=0.15
