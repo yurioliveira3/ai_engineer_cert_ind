@@ -78,6 +78,29 @@ class TestSafeInvoke:
         assert result.content == "Success"
         assert model.invoke.call_count == 1
 
+    def test_no_system_sends_only_human_message(self):
+        from langchain_core.messages import HumanMessage
+
+        model = MagicMock()
+        model.invoke.return_value = AIMessage(content="OK")
+        safe_invoke(model, "user prompt")
+        msgs = model.invoke.call_args[0][0]
+        assert len(msgs) == 1
+        assert isinstance(msgs[0], HumanMessage)
+
+    def test_system_is_prepended_as_system_message(self):
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        model = MagicMock()
+        model.invoke.return_value = AIMessage(content="OK")
+        safe_invoke(model, "user prompt", system="você é um analista")
+        msgs = model.invoke.call_args[0][0]
+        assert len(msgs) == 2
+        assert isinstance(msgs[0], SystemMessage)
+        assert msgs[0].content == "você é um analista"
+        assert isinstance(msgs[1], HumanMessage)
+        assert msgs[1].content == "user prompt"
+
 
 class TestGetTokenUsage:
     def test_uses_provider_usage_metadata(self):

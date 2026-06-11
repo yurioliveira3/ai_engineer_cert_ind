@@ -18,7 +18,7 @@ from sqlalchemy import create_engine
 
 from src.agent.guardrails import validate_metrics, validate_output_pii, validate_user_input
 from src.agent.logging_config import AgentAuditLogger, setup_logger
-from src.agent.prompts import render_prompt
+from src.agent.prompts import load_prompt, render_prompt
 from src.agent.tools.chart_tool import generate_daily_cases_chart, generate_monthly_cases_chart
 from src.agent.tools.news_tool import search_and_index_news, semantic_search_news
 from src.agent.tools.report_tool import generate_report
@@ -311,6 +311,7 @@ def analyze(state: AgentState, settings: Settings, audit_logger: AgentAuditLogge
         data_ref = str(metrics.get("data_ref", ""))
         data_hora_consulta = time.strftime("%Y-%m-%d %H:%M:%S")
 
+        system_prompt = load_prompt("system")
         prompt, prompt_hash = render_prompt(
             "analyze_metrics",
             payload=str(metrics),
@@ -320,7 +321,7 @@ def analyze(state: AgentState, settings: Settings, audit_logger: AgentAuditLogge
         )
 
         model = get_chat_model(settings)
-        response = safe_invoke(model, prompt)
+        response = safe_invoke(model, prompt, system=system_prompt)
         tokens_in, tokens_out = get_token_usage(response, prompt)
 
         # Log LLM call
