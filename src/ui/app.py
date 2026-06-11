@@ -162,11 +162,12 @@ def main():
     metrics = report.get("metrics", {})
     if metrics:
         st.subheader("📊 Métricas")
-        cols = st.columns(4)
+        # Padding columns [1, …, 1] center the 4 metric cards at ~80% page width.
+        cols = st.columns([1, 2, 2, 2, 2, 1])
         for i, (metric_key, metric_label) in enumerate(METRIC_LABELS.items()):
             value = metrics.get(metric_key, {})
             main, detail = metric_value_parts(value)
-            with cols[i]:
+            with cols[i + 1]:
                 st.metric(label=metric_label, value=main)
                 # When there is no percentage base, show the explanatory note
                 # below the value (smaller font) instead of truncating it.

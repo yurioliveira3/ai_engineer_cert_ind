@@ -359,7 +359,15 @@ def analyze(state: AgentState, settings: Settings, audit_logger: AgentAuditLogge
             duration_ms=duration_ms,
             success=False,
         )
-        return {"analysis": f"Análise indisponível: erro durante processamento ({str(e)[:100]})"}
+        error_str = str(e)
+        if "RESOURCE_EXHAUSTED" in error_str or "429" in error_str:
+            friendly = (
+                "⚠️ Análise indisponível — limite de requisições da API atingido. "
+                "Aguarde alguns minutos e tente novamente."
+            )
+        else:
+            friendly = "⚠️ Análise indisponível — ocorreu um erro durante o processamento. Tente novamente mais tarde."
+        return {"analysis": friendly}
 
 
 def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAuditLogger) -> dict:
