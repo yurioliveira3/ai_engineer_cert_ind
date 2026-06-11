@@ -4,7 +4,11 @@ from unittest.mock import patch
 import plotly.graph_objects as go
 import pytest
 
-from src.agent.tools.chart_tool import generate_daily_cases_chart, generate_monthly_cases_chart
+from src.agent.tools.chart_tool import (
+    _rolling_mean,
+    generate_daily_cases_chart,
+    generate_monthly_cases_chart,
+)
 
 
 def _make_daily_data(n=30):
@@ -64,6 +68,55 @@ class TestChartWithEmptyDataDoesNotCrash:
         annotations = fig.layout.annotations
         texts = [a.text for a in annotations] if annotations else []
         assert "Sem dados disponíveis" in texts
+
+
+class TestRollingMean:
+    def test_single_element(self):
+        assert _rolling_mean([10]) == [10.0]
+
+    def test_window_larger_than_series(self):
+        result = _rolling_mean([1, 2, 3], window=7)
+        assert result[0] == pytest.approx(1.0)
+        assert result[1] == pytest.approx(1.5)
+        assert result[2] == pytest.approx(2.0)
+
+    def test_exact_window(self):
+        result = _rolling_mean([0, 0, 0, 4, 0, 0, 7], window=7)
+        assert result[6] == pytest.approx(11 / 7)
+
+    def test_length_preserved(self):
+        values = list(range(30))
+        assert len(_rolling_mean(values)) == 30
+
+
+class TestDailyChartHasMovingAverage:
+    def test_daily_chart_has_two_traces(self, tmp_path):
+        data = _make_daily_data()
+        with patch.object(go.Figure, "write_image", _mock_write_image):
+            _path, fig = generate_daily_cases_chart(data, output_dir=str(tmp_path))
+        assert len(fig.data) == 2
+
+    def test_second_trace_is_moving_average(self, tmp_path):
+        data = _make_daily_data()
+        with patch.object(go.Figure, "write_image", _mock_write_image):
+            _path, fig = generate_daily_cases_chart(data, output_dir=str(tmp_path))
+        assert "7 dias" in fig.data[1].name
+
+    def test_daily_chart_has_peak_annotation(self, tmp_path):
+        data = _make_daily_data()
+        with patch.object(go.Figure, "write_image", _mock_write_image):
+            _path, fig = generate_daily_cases_chart(data, output_dir=str(tmp_path))
+        texts = [a.text for a in fig.layout.annotations] if fig.layout.annotations else []
+        assert any("Pico" in t for t in texts)
+
+
+class TestMonthlyChartHasPeakAnnotation:
+    def test_monthly_chart_has_peak_annotation(self, tmp_path):
+        data = _make_monthly_data()
+        with patch.object(go.Figure, "write_image", _mock_write_image):
+            _path, fig = generate_monthly_cases_chart(data, output_dir=str(tmp_path))
+        texts = [a.text for a in fig.layout.annotations] if fig.layout.annotations else []
+        assert any("Pico" in t for t in texts)
 
 
 class TestPngExportHasContent:

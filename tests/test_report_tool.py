@@ -96,6 +96,59 @@ class TestReportWithoutNews:
         assert "Notícias" not in md
 
 
+class TestReportWithCharts:
+    def test_markdown_includes_chart_section_when_png_exists(self, tmp_path):
+        daily_png = tmp_path / "daily_cases.png"
+        monthly_png = tmp_path / "monthly_cases.png"
+        daily_png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+        monthly_png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+
+        charts = {
+            "daily": {"path": str(daily_png), "fig_json": ""},
+            "monthly": {"path": str(monthly_png), "fig_json": ""},
+        }
+        result = generate_report(
+            metrics=_sample_metrics(),
+            news=[],
+            analysis=_sample_analysis(),
+            data_ref=_sample_data_ref(),
+            charts=charts,
+            output_dir=str(tmp_path),
+        )
+        md = result["markdown"]
+        assert "Gráficos" in md
+        assert "Figura 1" in md
+        assert "Figura 2" in md
+        assert str(daily_png) in md
+
+    def test_markdown_omits_chart_section_when_paths_empty(self, tmp_path):
+        charts = {
+            "daily": {"path": "", "fig_json": ""},
+            "monthly": {"path": "", "fig_json": ""},
+        }
+        result = generate_report(
+            metrics=_sample_metrics(),
+            news=[],
+            analysis=_sample_analysis(),
+            data_ref=_sample_data_ref(),
+            charts=charts,
+            output_dir=str(tmp_path),
+        )
+        md = result["markdown"]
+        assert "Gráficos" not in md
+
+    def test_report_without_charts_param_still_works(self, tmp_path):
+        result = generate_report(
+            metrics=_sample_metrics(),
+            news=[],
+            analysis=_sample_analysis(),
+            data_ref=_sample_data_ref(),
+            output_dir=str(tmp_path),
+        )
+        assert "Relatório SRAG" in result["markdown"]
+        assert result["pdf_path"].endswith(".pdf")
+
+
 class TestPortugueseAccentsInPdf:
     def test_pdf_starts_with_header_and_accents_not_corrupted(self, tmp_path):
         result = generate_report(
