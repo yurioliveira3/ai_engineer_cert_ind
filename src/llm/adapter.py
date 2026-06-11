@@ -1,7 +1,7 @@
 import logging
 import time
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 
@@ -58,12 +58,23 @@ def _is_rate_limit_error(error: Exception) -> bool:
     return any(marker.lower() in error_str for marker in _RATE_LIMIT_MARKERS)
 
 
-def safe_invoke(model, prompt: str, retries: int = 5, backoff_factor: int = 2):
-    """Invoke LLM with retry on rate-limit errors. Uses exponential backoff."""
+def safe_invoke(
+    model, prompt: str, system: str | None = None, retries: int = 5, backoff_factor: int = 2
+):
+    """Invoke LLM with retry on rate-limit errors. Uses exponential backoff.
+
+    When ``system`` is given, it is sent as a SystemMessage before the user
+    prompt (separating the agent's invariant role/rules from the per-run task).
+    """
+    messages: list = []
+    if system:
+        messages.append(SystemMessage(content=system))
+    messages.append(HumanMessage(content=prompt))
+
     last_error: Exception | None = None
     for attempt in range(retries + 1):
         try:
-            return model.invoke([HumanMessage(content=prompt)])
+            return model.invoke(messages)
         except Exception as e:
             last_error = e
             if not _is_rate_limit_error(e):

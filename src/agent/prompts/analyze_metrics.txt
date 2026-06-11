@@ -1,39 +1,54 @@
-### Atue
-Você é um sistema de análise automática de indicadores epidemiológicos de SRAG.
+# Tarefa
+Analise os indicadores epidemiológicos de SRAG e o contexto de notícias abaixo e
+escreva o relatório textual seguindo as instruções. Use apenas o que está aqui.
 
-### Tarefa
-Receba um payload JSON com métricas calculadas e produza uma análise textual estruturada.
+# Temporalidade
+- Indicadores e gráficos: dados históricos do DATASUS, última atualização em {data_ref}.
+- Notícias: consultadas em tempo real em {data_hora_consulta}.
+Ao dizer "situação atual", refira-se ao período coberto pelos dados (até {data_ref}).
 
-### Público-alvo
-Profissionais de saúde com formação clínica (médicos, epidemiologistas, gestores hospitalares).
-Escreva com linguagem de saúde pública. Evite termos de engenharia de software, nomes de
-variáveis, tecnologias ou jargão de dados. Prefira: "internações por SRAG", "taxa de
-mortalidade hospitalar", "cobertura vacinal" — não "DataFrame", "query", "embedding".
+# O que produzir
+1. Comente cada um dos quatro indicadores com seu valor e leitura clínica:
+   taxa de aumento de casos, mortalidade hospitalar, ocupação de UTI e cobertura vacinal.
+2. Sinalize valores fora do esperado segundo estes limiares de alerta:
+   - mortalidade hospitalar acima de 25%
+   - proporção de internados em UTI acima de 40%
+   - cobertura vacinal abaixo de 50%
+   - aumento semanal de casos acima de 50%
+3. Indique a tendência (alta, queda ou estabilidade) quando houver base temporal.
+4. Use as notícias apenas quando reforçarem ou contextualizarem um indicador,
+   citando a fonte; ignore as irrelevantes.
+5. Encerre com recomendações de vigilância proporcionais aos achados.
 
-### Temporalidade dos dados
-As métricas são baseadas em dados históricos do DATASUS (última atualização: {data_ref}).
-As notícias foram consultadas em tempo real ({data_hora_consulta}).
-Sempre que mencionar "situação atual", refira-se explicitamente ao período coberto pelos dados.
+# Como interpretar os indicadores
+- "Ocupação de UTI" é a proporção de internados por SRAG que foram para UTI, e não
+  ocupação de leitos (indisponível na base). Descreva-a nesses termos.
+- A cobertura vacinal considera os casos notificados a partir de 2021.
+- Se a taxa de aumento não tiver base comparável (semana anterior sem casos), trate
+  como "sem base percentual" e relate a variação absoluta de casos, se fornecida.
 
-### Requisitos
-- Entrada: JSON com as 4 métricas, período, notícias e fontes
-- Saída: análise textual em português, 3-5 parágrafos, tom profissional
-
-### Instruções
-1. Apresente cada métrica com seu valor e interpretação clínica
-2. Destaque valores fora do esperado (mortalidade > 25%, UTI > 40%, vacinação < 50%)
-3. Relacione com contexto das notícias quando pertinente
-4. Indique tendências (aumento/diminuição) quando dados temporais disponíveis
-5. Conclua com recomendações de vigilância
-
-### Restrições anti-alucinação
-- Não inventar números nem datas não presentes no payload
-- Citar URL ao referenciar notícia
-- Marcar explicitamente quando dado está ausente: "métrica indisponível no período"
-- Não emitir diagnósticos clínicos individuais (LGPD)
-
-### Payload
+# Indicadores (dados desta execução)
 {payload}
 
-### Exemplo de saída esperada
-No período de referência (até {data_ref}), a taxa de mortalidade por SRAG foi de X%, enquanto a taxa de internação em UTI alcançou Y%. A cobertura vacinal entre os notificados a partir de 2021 permanece em Z%, abaixo do ideal para contenção da doença. Comparativamente à semana anterior, houve um aumento de W% nos casos notificados. Notícias recentes confirmam aumento na circulação de vírus respiratórios em [estado/região], alinhando-se com a tendência observada nos dados.
+# Notícias recentes (contexto)
+{news_consolidated}
+
+# Exemplo de referência (estilo e rigor; NÃO reutilize estes números)
+Entrada (resumo):
+- mortalidade: 9,8% (1.550 óbitos em 20.762 casos com desfecho)
+- UTI: 27,5% dos internados
+- cobertura vacinal: 53,4% (casos desde 2021)
+- aumento semanal: sem base comparável (semana anterior sem casos; +127 casos)
+- notícia (fiocruz.br): InfoGripe aponta alta de SRAG por VSR e influenza
+Saída esperada:
+"No período coberto pelos dados, a taxa de mortalidade hospitalar por SRAG foi de
+9,8%, equivalente a 1.550 óbitos entre os 20.762 casos com desfecho conhecido —
+patamar dentro do historicamente observado e abaixo do limiar de alerta. A
+internação em UTI alcançou 27,5% dos hospitalizados, indicando gravidade relevante,
+ainda que sem ultrapassar o nível de alerta. A cobertura vacinal entre os casos
+notificados desde 2021 permaneceu em 53,4%, próxima do mínimo desejável. O indicador
+de aumento semanal ficou sem base de comparação, pois a semana anterior não registrou
+casos confirmados; reporta-se, então, a variação absoluta de +127 casos, sem leitura
+percentual. O Boletim InfoGripe (Fiocruz) reforça o contexto ao apontar elevação de
+SRAG associada a VSR e influenza, coerente com o movimento observado. Recomenda-se
+acompanhar a cobertura vacinal e manter o monitoramento semanal das internações."

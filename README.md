@@ -293,9 +293,8 @@ srag-agent/
 │   │   ├── logging_config.py  # AgentAuditLogger (trace verboso), setup_logger
 │   │   ├── prompts/
 │   │   │   ├── __init__.py    # load_prompt, render_prompt (SHA-256)
-│   │   │   ├── system.txt     # Prompt do sistema
-│   │   │   ├── analyze_metrics.txt  # Prompt de análise
-│   │   │   └── news_query_gen.txt   # Prompt de geração de queries
+│   │   │   ├── system.txt     # System prompt (papel, regras anti-alucinação, tom)
+│   │   │   └── analyze_metrics.txt  # User prompt da análise (tarefa + dados + few-shot)
 │   │   └── tools/
 │   │       ├── sql_tool.py     # execute_metric_query, execute_tabular_query, get_data_ref (4 métricas + 2 temporais)
 │   │       ├── news_tool.py    # search_and_index_news (ddgs, output_format=list), semantic_search_news
