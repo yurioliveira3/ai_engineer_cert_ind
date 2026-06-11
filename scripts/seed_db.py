@@ -96,7 +96,11 @@ def seed_database(csv_paths: list[str] | None = None):
     combined = pd.concat(dfs, ignore_index=True)
     logger.info(f"Total rows after concatenation: {len(combined)}")
 
-    # Create tables
+    # Drop and recreate the table via SQLAlchemy so indexes are always in sync
+    # with the model definition. Using to_sql(if_exists="replace") was silently
+    # dropping all SQLAlchemy-managed indexes on every re-seed.
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS srag.srag_cases CASCADE"))
     Base.metadata.create_all(engine)
     logger.info("Tables created/verified")
 
@@ -106,7 +110,7 @@ def seed_database(csv_paths: list[str] | None = None):
         "srag_cases",
         engine,
         schema="srag",
-        if_exists="replace",
+        if_exists="append",
         index=False,
         chunksize=5000,
     )

@@ -1,6 +1,6 @@
 """SQLAlchemy models for SRAG database."""
 
-from sqlalchemy import Boolean, Column, Date, Index, Integer, SmallInteger, String
+from sqlalchemy import Boolean, Column, Date, Index, Integer, SmallInteger, String, text
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -20,11 +20,17 @@ class SragCase(Base):
     __tablename__ = "srag_cases"
     __table_args__ = (
         Index("ix_srag_cases_dt_notific_caso_confirmado", "dt_notific", "caso_confirmado"),
+        Index(
+            "idx_srag_confirmed_dt_uf",
+            "dt_notific",
+            "sg_uf_not",
+            postgresql_where=text("caso_confirmado = true"),
+        ),
         {"schema": "srag"},
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    dt_notific = Column(Date, index=True)
+    dt_notific = Column(Date)
     dt_sin_pri = Column(Date)
     dt_interna = Column(Date)
     evolucao = Column(SmallInteger)
@@ -40,6 +46,6 @@ class SragCase(Base):
     cs_sexo = Column(String(1))
     sg_uf_not = Column(String(2), index=True)
     classi_fin = Column(SmallInteger)
-    caso_confirmado = Column(Boolean, index=True)
+    caso_confirmado = Column(Boolean)
     sem_not = Column(SmallInteger)
     ano_notificacao = Column(SmallInteger, index=True)
