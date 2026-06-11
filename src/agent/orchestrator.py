@@ -371,6 +371,7 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
         metrics = state.get("metrics", {})
         news = state.get("news", [])
         analysis = state.get("analysis", "")
+        charts = state.get("charts", {})
         data_ref = str(metrics.get("data_ref", ""))
 
         report = generate_report(
@@ -378,6 +379,7 @@ def compile_report(state: AgentState, settings: Settings, audit_logger: AgentAud
             news=news,
             analysis=analysis,
             data_ref=data_ref,
+            charts=charts,
         )
 
         duration_ms = int((time.time() - start) * 1000)

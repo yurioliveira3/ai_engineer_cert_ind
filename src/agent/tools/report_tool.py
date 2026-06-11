@@ -176,6 +176,30 @@ class _SRAGReport(FPDF):
             self.cell(0, 6, self._t(f"  [{source_tag}] {title}"), new_x="LMARGIN", new_y="NEXT")
         self.ln(4)
 
+    def add_charts(self, charts: dict):
+        """Embed daily and monthly chart PNGs into the PDF.
+
+        Each chart path is only embedded when the file actually exists on disk
+        (kaleido may be unavailable in slim containers, leaving path as "").
+
+        Args:
+            charts: Dict with keys ``"daily"`` and ``"monthly"``, each mapping
+                to a sub-dict with a ``"path"`` key pointing to the PNG file.
+        """
+        entries = [
+            ("daily", "Figura 1 — Casos diários (últimos 30 dias)"),
+            ("monthly", "Figura 2 — Casos mensais (últimos 12 meses)"),
+        ]
+        for key, caption in entries:
+            path = charts.get(key, {}).get("path", "") if isinstance(charts.get(key), dict) else ""
+            if path and os.path.exists(path):
+                self._use_font(10)
+                self.cell(0, 7, self._t(caption), new_x="LMARGIN", new_y="NEXT")
+                self.ln(1)
+                usable_w = self.w - self.l_margin - self.r_margin
+                self.image(path, x=self.l_margin, w=usable_w)
+                self.ln(4)
+
     def add_data_ref(self, data_ref: str):
         """Add a data sources reference line to the PDF.
 
@@ -197,6 +221,7 @@ def _build_markdown(
     news: list[dict],
     analysis: str,
     data_ref: str,
+    charts: dict | None = None,
 ) -> str:
     date_str = datetime.now().strftime("%Y-%m-%d")
     lines: list[str] = []
@@ -215,6 +240,29 @@ def _build_markdown(
     for key, label in METRIC_LABELS.items():
         lines.append(f"| {label} | {format_metric_value(metrics.get(key))} |")
     lines.append("")
+
+    if charts:
+        daily_path = (
+            charts.get("daily", {}).get("path", "") if isinstance(charts.get("daily"), dict) else ""
+        )
+        monthly_path = (
+            charts.get("monthly", {}).get("path", "")
+            if isinstance(charts.get("monthly"), dict)
+            else ""
+        )
+        if daily_path or monthly_path:
+            lines.append("## Gráficos")
+            lines.append("")
+            if daily_path and os.path.exists(daily_path):
+                lines.append("**Figura 1 — Casos diários (últimos 30 dias)**")
+                lines.append("")
+                lines.append(f"![Casos diários de SRAG]({daily_path})")
+                lines.append("")
+            if monthly_path and os.path.exists(monthly_path):
+                lines.append("**Figura 2 — Casos mensais (últimos 12 meses)**")
+                lines.append("")
+                lines.append(f"![Casos mensais de SRAG]({monthly_path})")
+                lines.append("")
 
     if news:
         lines.append("## Contexto — Notícias recentes")
@@ -246,10 +294,24 @@ def generate_report(
     news: list[dict],
     analysis: str,
     data_ref: str,
+    charts: dict | None = None,
     output_dir: str | None = None,
 ) -> dict:
-    # charts are shown interactively in the UI, not embedded in the report markdown
-    md = _build_markdown(metrics, news, analysis, data_ref)
+    """Generate the SRAG report in Markdown and PDF formats.
+
+    Args:
+        metrics: Dict of metric keys to their computed values.
+        news: List of news item dicts (title, url, source, snippet).
+        analysis: LLM-generated analytical text.
+        data_ref: Reference date of the most recent data.
+        charts: Optional dict with ``"daily"`` and ``"monthly"`` keys, each
+            containing a sub-dict with ``"path"`` (PNG filepath) and
+            ``"fig_json"`` (Plotly JSON). PNG files are embedded in the PDF
+            and referenced in the Markdown when the files exist on disk.
+        output_dir: Directory where the PDF will be saved. Defaults to
+            ``data/reports``.
+    """
+    md = _build_markdown(metrics, news, analysis, data_ref, charts=charts)
 
     pdf_path = ""
     try:
@@ -261,6 +323,8 @@ def generate_report(
         pdf.add_page()
         pdf.add_analysis(analysis)
         pdf.add_metrics(metrics)
+        if charts:
+            pdf.add_charts(charts)
         pdf.add_news(news)
         pdf.add_data_ref(data_ref)
 
