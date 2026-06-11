@@ -12,11 +12,12 @@ CREATE TABLE IF NOT EXISTS news.news_embeddings (
     indexed_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- IVFFlat index for approximate nearest neighbor search
--- Lists parameter: ~sqrt(rows) is a good starting point; 100 works well for ~10K rows
+-- HNSW index for approximate nearest neighbor search.
+-- Unlike IVFFlat, HNSW builds progressively as rows are inserted, so it works
+-- correctly even when created on an empty table (IVFFlat has no centroids without data).
 CREATE INDEX IF NOT EXISTS news_embeddings_vec_idx
     ON news.news_embeddings
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+    USING hnsw (embedding vector_cosine_ops);
 
 -- Grant permissions
 GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA news TO srag_app;
