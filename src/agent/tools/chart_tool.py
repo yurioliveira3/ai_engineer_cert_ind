@@ -1,5 +1,6 @@
 import os
 from collections.abc import Sequence
+from datetime import datetime
 
 
 def _rolling_mean(values: Sequence[int | float], window: int = 7) -> list[float]:
@@ -9,6 +10,80 @@ def _rolling_mean(values: Sequence[int | float], window: int = 7) -> list[float]
         chunk = values[start : i + 1]
         result.append(sum(chunk) / len(chunk))
     return result
+
+
+def _parse_date(value) -> datetime:
+    return datetime.fromisoformat(str(value)[:10])
+
+
+def _save_daily_png(data: list, filepath: str, data_ref=None) -> None:
+    """Render daily cases chart to PNG using matplotlib (headless, no kaleido)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+
+    if data:
+        dates = [_parse_date(row["dt_notific"]) for row in data]
+        cases = [int(row["casos"]) for row in data]
+        ma = _rolling_mean(cases)
+
+        ax.plot(dates, cases, color="#1f77b4", alpha=0.6, linewidth=1,
+                marker="o", markersize=3, label="Casos diários")
+        ax.plot(dates, ma, color="#d62728", linewidth=2, label="Média móvel 7d")
+
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+        fig.autofmt_xdate(rotation=30)
+        ax.legend(loc="upper left", fontsize=8)
+    else:
+        ax.text(0.5, 0.5, "Sem dados disponíveis", ha="center", va="center",
+                transform=ax.transAxes, fontsize=12, color="gray")
+
+    ax.set_title("Casos diários de SRAG — Últimos 30 dias", fontsize=10)
+    ax.set_xlabel("Data", fontsize=8)
+    ax.set_ylabel("Casos", fontsize=8)
+    ax.grid(True, alpha=0.3)
+    if data_ref:
+        fig.text(0.98, 0.01, str(data_ref), ha="right", fontsize=7, color="gray")
+
+    plt.tight_layout()
+    plt.savefig(filepath, dpi=120, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_monthly_png(data: list, filepath: str, data_ref=None) -> None:
+    """Render monthly cases bar chart to PNG using matplotlib (headless, no kaleido)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+
+    if data:
+        dates = [_parse_date(row["dt_notific"]) for row in data]
+        labels = [d.strftime("%b/%Y") for d in dates]
+        cases = [int(row["casos"]) for row in data]
+
+        ax.bar(range(len(cases)), cases, color="#2ca02c", alpha=0.85)
+        ax.set_xticks(range(len(cases)))
+        ax.set_xticklabels(labels, rotation=40, ha="right", fontsize=7)
+
+        ax.grid(True, alpha=0.3, axis="y")
+    else:
+        ax.text(0.5, 0.5, "Sem dados disponíveis", ha="center", va="center",
+                transform=ax.transAxes, fontsize=12, color="gray")
+
+    ax.set_title("Casos mensais de SRAG — Últimos 12 meses", fontsize=10)
+    ax.set_xlabel("Mês", fontsize=8)
+    ax.set_ylabel("Casos", fontsize=8)
+    if data_ref:
+        fig.text(0.98, 0.01, str(data_ref), ha="right", fontsize=7, color="gray")
+
+    plt.tight_layout()
+    plt.savefig(filepath, dpi=120, bbox_inches="tight")
+    plt.close(fig)
 
 
 def generate_daily_cases_chart(data, output_dir=None, data_ref=None):
@@ -107,7 +182,7 @@ def generate_daily_cases_chart(data, output_dir=None, data_ref=None):
         )
 
     try:
-        fig.write_image(filepath, width=800, height=400)
+        _save_daily_png(data, filepath, data_ref)
     except Exception:
         filepath = ""
 
@@ -194,7 +269,7 @@ def generate_monthly_cases_chart(data, output_dir=None, data_ref=None):
         )
 
     try:
-        fig.write_image(filepath, width=800, height=400)
+        _save_monthly_png(data, filepath, data_ref)
     except Exception:
         filepath = ""
 

@@ -3,7 +3,8 @@
 # ~=X.Y allows patch/minor updates within the same major (e.g. ~=1.3 → >=1.3,==1.*).
 # torch is installed separately in the Dockerfile with --index-url cpu-only to avoid
 # pulling 3.5 GB of CUDA/nvidia/triton binaries that are never used (CPU inference only).
-# kaleido: hard ceiling <1.0 because 1.x requires Chrome (breaks headless containers).
+# matplotlib: used for headless PNG export (PDF charts). kaleido removed — it needed
+# Electron system libs absent from python:3.11-slim and failed silently in the container.
 
 langchain~=1.3
 langchain-google-genai~=4.2
@@ -19,7 +20,7 @@ pandas~=3.0
 sentence-transformers~=5.5
 ddgs~=9.14
 plotly~=6.8
-kaleido>=0.2,<1.0
+matplotlib~=3.9
 fpdf2~=2.8
 streamlit~=1.58
 python-dotenv~=1.2

@@ -48,9 +48,6 @@ Thumbs.db
 # Docker
 pgdata/
 
-# Generated reports
-*.pdf
-
 # Ruff
 .ruff_cache/
 

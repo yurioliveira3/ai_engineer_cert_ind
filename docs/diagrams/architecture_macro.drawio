@@ -1,0 +1,72 @@
+<mxfile host="65bd71144e">
+    <diagram name="Arquitetura SRAG Agent — Macro" id="srag-arch-macro">
+        <mxGraphModel dx="368" dy="590" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="720" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="user" value="&lt;b&gt;User&lt;/b&gt;" style="shape=mxgraph.basic.person2;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="395" y="20" width="60" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="streamlit" value="&lt;b&gt;Streamlit&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;Filtros: UF | Data de Referência&lt;br&gt;Métricas | Gráficos | Relatório | PDF download | Auditoria&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="110" width="650" height="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="agent" value="&lt;b&gt;SRAG Agent — LangGraph (Orquestrador)&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;calculate_metrics &amp;rarr; generate_charts &amp;rarr; search_news &amp;rarr; retrieve_semantic &amp;rarr; analyze &amp;rarr; compile_report&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EBF3FB;strokeColor=#6c8ebf;strokeWidth=2;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="220" width="650" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="db" value="&lt;b&gt;&lt;br&gt;&lt;br&gt;PG 16&lt;/b&gt;&lt;br&gt;DATASUS / SIVEP-Gripe&lt;br&gt;604K registros · 4 métricas + séries&lt;br&gt;Índice parcial por UF" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="108" y="355" width="179" height="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="news" value="&lt;b&gt;Notícias em Tempo Real&lt;/b&gt;&lt;br/&gt;DuckDuckGo (br-pt) — sem API key&lt;br/&gt;Embeddings BGE 1024d&lt;br/&gt;pgvector HNSW cosine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="307" y="355" width="235" height="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="llm" value="&lt;b&gt;LLM (Gemini 2.5 Flash)&lt;/b&gt;&lt;br&gt;Análise contextualizada&lt;br&gt;Provider-agnostic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="573" y="355" width="159" height="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="report" value="&lt;b&gt;Relatório&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;Markdown (Dashboard) &amp;nbsp;·&amp;nbsp; PDF (fpdf2) &amp;nbsp;·&amp;nbsp; Métricas · Gráficos embutidos · Resumo LLM&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="500" width="650" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="guardrails" value="&lt;b&gt;Guardrails — 4 camadas independentes&lt;/b&gt;&lt;br/&gt;SQL safety · Input validation (injeção de prompt) · Metric ranges · PII output filter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="620" width="305" height="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit" value="&lt;b&gt;Audit Logger (AgentAuditLogger)&lt;/b&gt;&lt;br/&gt;audit.agent_sessions · decisions · query_history (SHA-256) · llm_calls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="445" y="620" width="305" height="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="cc_label" value="Aspectos transversais" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontStyle=2;" parent="1" vertex="1">
+                    <mxGeometry x="99.5" y="588" width="650" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_user_st" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" parent="1" source="user" target="streamlit" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_st_agent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" parent="1" source="streamlit" target="agent" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_agent_db" style="rounded=0;exitX=0.15;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="agent" target="db" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_agent_news" style="rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="agent" target="news" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_agent_llm" style="rounded=0;exitX=0.85;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="agent" target="llm" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_db_rep" style="rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.15;entryY=0;entryDx=0;entryDy=0;" parent="1" source="db" target="report" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_news_rep" style="rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="news" target="report" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_llm_rep" style="rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.85;entryY=0;entryDx=0;entryDy=0;" parent="1" source="llm" target="report" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rep_st" value="retorna" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#000000;fontStyle=2;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="report" target="streamlit" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="800" y="530"/>
+                            <mxPoint x="800" y="143"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
