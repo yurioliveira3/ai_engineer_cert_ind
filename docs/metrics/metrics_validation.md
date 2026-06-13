@@ -6,16 +6,16 @@
 
 - **data_ref**: `MAX(dt_notific)` = 2026-12-05
 - **Total confirmed cases**: 585,858
-- **Data source**: DATASUS SIVEP-Gripe (SRAG-HOSP-2020-2024)
+- **Data source**: DATASUS SIVEP-Gripe (SRAG-HOSP-2023-2026)
 
 ## Metric Results
 
-| Metric | Value | Expected Range | Status |
-|--------|-------|---------------|--------|
-| Taxa de mortalidade | 7.47% | 0-50% | ✅ In range |
-| Taxa de UTI | 27.45% | 0-80% | ✅ In range |
-| Taxa de vacinação | 53.44% | 0-100% | ✅ In range |
-| Taxa de aumento de casos | N/A* | -100% to +1000% | ⚠️ Undefined** |
+| Metric | Value | Guardrail Alert Threshold | Status |
+|--------|-------|--------------------------|--------|
+| Taxa de mortalidade | 7.47% | > 50% | ✅ In range |
+| Taxa de UTI | 27.45% | > 100% | ✅ In range |
+| Taxa de vacinação | 53.44% | > 100% | ✅ In range |
+| Taxa de aumento de casos | N/A* | > 500% | ⚠️ Undefined** |
 
 *\* taxa_aumento is None when the previous week has 0 confirmed cases (division by zero protected by NULLIF).
 
