@@ -177,28 +177,75 @@ class _SRAGReport(FPDF):
         self.ln(4)
 
     def add_charts(self, charts: dict):
-        """Embed daily and monthly chart PNGs into the PDF.
+        """Embed daily and monthly chart PNGs side by side into the PDF.
 
-        Each chart path is only embedded when the file actually exists on disk
-        (kaleido may be unavailable in slim containers, leaving path as "").
+        Both charts are placed at the same y position (side by side). Captions
+        appear below each image. The cursor is advanced past the images using
+        ``rendered_height`` from fpdf2's ImageInfo return value, so no content
+        overlaps the charts.
 
         Args:
             charts: Dict with keys ``"daily"`` and ``"monthly"``, each mapping
                 to a sub-dict with a ``"path"`` key pointing to the PNG file.
         """
-        entries = [
-            ("daily", "Figura 1 — Casos diários (últimos 30 dias)"),
-            ("monthly", "Figura 2 — Casos mensais (últimos 12 meses)"),
-        ]
-        for key, caption in entries:
-            path = charts.get(key, {}).get("path", "") if isinstance(charts.get(key), dict) else ""
-            if path and os.path.exists(path):
-                self._use_font(10)
-                self.cell(0, 7, self._t(caption), new_x="LMARGIN", new_y="NEXT")
-                self.ln(1)
-                usable_w = self.w - self.l_margin - self.r_margin
-                self.image(path, x=self.l_margin, w=usable_w)
-                self.ln(4)
+        daily_path = (
+            charts.get("daily", {}).get("path", "") if isinstance(charts.get("daily"), dict) else ""
+        )
+        monthly_path = (
+            charts.get("monthly", {}).get("path", "")
+            if isinstance(charts.get("monthly"), dict)
+            else ""
+        )
+
+        has_daily = bool(daily_path and os.path.exists(daily_path))
+        has_monthly = bool(monthly_path and os.path.exists(monthly_path))
+
+        if not has_daily and not has_monthly:
+            return
+
+        usable_w = self.w - self.l_margin - self.r_margin
+
+        if has_daily and has_monthly:
+            gap = 4  # mm between the two charts
+            chart_w = (usable_w - gap) / 2
+            y_img = self.get_y()
+
+            # Place both images at the same y (side by side).
+            # image() returns ImageInfo with rendered_height (fpdf2 >= 2.7.4).
+            info_l = self.image(daily_path, x=self.l_margin, y=y_img, w=chart_w)
+            info_r = self.image(
+                monthly_path, x=self.l_margin + chart_w + gap, y=y_img, w=chart_w
+            )
+
+            # Advance cursor past the taller of the two images.
+            h_l = getattr(info_l, "rendered_height", chart_w / 2)
+            h_r = getattr(info_r, "rendered_height", chart_w / 2)
+            y_below = y_img + max(h_l, h_r)
+
+            # Captions centered below each image.
+            self._use_font(8)
+            self.set_xy(self.l_margin, y_below + 1)
+            self.cell(chart_w, 5, self._t("Fig. 1 — Casos diários (30d)"), align="C")
+            self.set_xy(self.l_margin + chart_w + gap, y_below + 1)
+            self.cell(chart_w, 5, self._t("Fig. 2 — Casos mensais (12m)"), align="C")
+            # Move cursor to below the captions before next section.
+            self.set_y(y_below + 7)
+            self.ln(4)
+        else:
+            path = daily_path if has_daily else monthly_path
+            caption = (
+                "Fig. 1 — Casos diários (últimos 30 dias)"
+                if has_daily
+                else "Fig. 2 — Casos mensais (últimos 12 meses)"
+            )
+            y_img = self.get_y()
+            info = self.image(path, x=self.l_margin, y=y_img, w=usable_w)
+            h = getattr(info, "rendered_height", usable_w / 2)
+            y_below = y_img + h
+            self._use_font(9)
+            self.set_xy(self.l_margin, y_below + 1)
+            self.cell(0, 5, self._t(caption), align="C", new_x="LMARGIN", new_y="NEXT")
+            self.ln(4)
 
     def add_data_ref(self, data_ref: str):
         """Add a data sources reference line to the PDF.
@@ -321,10 +368,10 @@ def generate_report(
 
         pdf = _SRAGReport()
         pdf.add_page()
-        pdf.add_analysis(analysis)
-        pdf.add_metrics(metrics)
         if charts:
             pdf.add_charts(charts)
+        pdf.add_analysis(analysis)
+        pdf.add_metrics(metrics)
         pdf.add_news(news)
         pdf.add_data_ref(data_ref)
 

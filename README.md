@@ -24,14 +24,89 @@ O escopo cobre exatamente o que foi requisitado: quatro métricas epidemiológic
 
 ## Arquitetura
 
-![Diagrama conceitual da arquitetura](docs/diagrams/architecture.png)
-_Diagrama gerado em draw.io — fonte em `docs/diagrams/architecture.drawio`, exportar como PDF para entrega_
+![Diagrama conceitual da arquitetura](docs/screenshots/architecture_macro.png)
+_Diagrama gerado em draw.io & PDF — fontes em `docs/diagrams/architecture_macro.drawio`, `docs/pdfs/architecture_full.pdf` e `docs/pdfs/architecture_macro.pdf`_
 
 O agente segue um **fluxo sequencial de 6 nós** implementado como `StateGraph` do LangGraph. O estado (`AgentState`) é tipado e propagado integralmente entre os nós — cada etapa lê o que precisa do estado e publica o resultado de volta nele.
 
+O diagrama abaixo detalha as interações entre todos os componentes a cada execução:
+
+```mermaid
+sequenceDiagram
+    actor U as Usuário
+    participant ST as Streamlit
+    participant ORC as Orquestrador
+    participant AL as Audit Logger
+    participant DB as PostgreSQL
+    participant CT as Chart Tool
+    participant NT as News Tool
+    participant PGV as pgvector
+    participant LLM as Gemini
+    participant RT as Report Tool
+
+    U->>ST: Seleciona filtros UF e data, clica Gerar Relatório
+    ST->>ORC: create_agent() + invoke(uf, data_ref)
+    ORC->>AL: start_session()
+
+    rect rgb(230, 245, 255)
+        Note over ORC,DB: calculate_metrics
+        loop 4 métricas
+            ORC->>DB: execute_metric_query(metric, uf, data_ref)
+            DB-->>ORC: resultado
+        end
+        ORC->>DB: get_data_ref(uf) -> MAX(dt_notific)
+        DB-->>ORC: data de referência
+        Note over ORC: validate_metrics() - guardrail
+        ORC->>AL: log_decision(calculate_metrics)
+    end
+
+    rect rgb(230, 255, 235)
+        Note over ORC,CT: generate_charts
+        ORC->>DB: execute_tabular_query(daily_cases_30d)
+        DB-->>ORC: série 30d
+        ORC->>CT: generate_daily_cases_chart(data)
+        CT-->>ORC: PNG matplotlib + Plotly fig
+        ORC->>DB: execute_tabular_query(monthly_cases_12m)
+        DB-->>ORC: série 12m
+        ORC->>CT: generate_monthly_cases_chart(data)
+        CT-->>ORC: PNG matplotlib + Plotly fig
+        ORC->>AL: log_decision(generate_charts)
+    end
+
+    rect rgb(255, 245, 220)
+        Note over ORC,PGV: search_news + retrieve_semantic
+        Note over ORC: validate_user_input() - guardrail
+        ORC->>NT: search_and_index_news(query, max=3)
+        NT->>NT: DuckDuckGo br-pt -> embeddings BGE 1024d
+        NT->>PGV: Persiste notícias + vetores
+        PGV-->>ORC: news indexadas
+        ORC->>AL: log_decision(search_news)
+        ORC->>PGV: semantic_search_news(query, k=3)
+        PGV-->>ORC: top-3 por similaridade coseno HNSW
+        ORC->>AL: log_decision(retrieve_semantic)
+    end
+
+    rect rgb(255, 235, 235)
+        Note over ORC,LLM: analyze
+        ORC->>LLM: safe_invoke(system_prompt + métricas + notícias)
+        LLM-->>ORC: análise contextualizada
+        Note over ORC: validate_output_pii() - guardrail
+        ORC->>AL: log_llm_call() + log_decision(analyze)
+    end
+
+    rect rgb(245, 230, 255)
+        Note over ORC,RT: compile_report
+        ORC->>RT: generate_report(métricas, notícias, análise, gráficos)
+        RT-->>ORC: Markdown + PDF fpdf2 + gráficos embutidos
+        ORC->>AL: log_decision(compile_report)
+    end
+
+    ORC->>AL: end_session(success)
+    ORC-->>ST: AgentState completo
+    ST->>U: Métricas, gráficos Plotly, relatório, botão PDF
 ```
-START → calculate_metrics → generate_charts → search_news → retrieve_semantic → analyze → compile_report → END
-```
+
+_Guardrails atuam em três pontos independentes: `validate_user_input` (injeção de prompt), `validate_metrics` (intervalos biológicos) e `validate_output_pii` (mascaramento no output do LLM). O `AgentAuditLogger` registra cada decisão nas tabelas `audit.*`._
 
 | Nó | Ferramenta | O que faz |
 |----|-----------|-----------|
