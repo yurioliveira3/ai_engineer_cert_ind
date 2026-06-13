@@ -21,8 +21,8 @@ These columns carry re-identification risk when combined, but are essential for 
 | Column | Risk | Mitigation |
 |--------|------|------------|
 | `NU_IDADE_N` | Age can identify individuals when combined with other fields | Output aggregated by age groups |
-| `ID_MN_RESI` | Municipality of residence can identify small populations | Output aggregated by state (SG_UF_NOT) |
-| `CS_RACA` | Race/ethnicity can contribute to re-identification | Output aggregated as proportions |
+
+> **Note**: Columns such as `ID_MN_RESI` (municipality) and `CS_RACA` (race/ethnicity) were evaluated but excluded from `SELECTED_COLUMNS` in `etl.py` — they are never loaded into the database, applying the principle of data minimization at the source.
 
 ### LGPD compliance
 

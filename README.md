@@ -36,68 +36,52 @@ sequenceDiagram
     actor U as Usuário
     participant ST as Streamlit
     participant ORC as Orquestrador
-    participant AL as Audit Logger
     participant DB as PostgreSQL
-    participant CT as Chart Tool
-    participant NT as News Tool
-    participant PGV as pgvector
+    participant NE as News + pgvector
     participant LLM as Gemini
-    participant RT as Report Tool
+    participant AL as Audit Logger
 
-    U->>ST: Seleciona filtros UF e data, clica Gerar Relatório
-    ST->>ORC: create_agent() + invoke(uf, data_ref)
+    U->>ST: Seleciona UF e data → Gerar Relatório
+    ST->>ORC: invoke(uf, data_ref)
     ORC->>AL: start_session()
 
-    rect rgb(230, 245, 255)
-        Note over ORC,DB: calculate_metrics
-        loop 4 métricas
-            ORC->>DB: execute_metric_query(metric, uf, data_ref)
-            DB-->>ORC: resultado
-        end
-        ORC->>DB: get_data_ref(uf) -> MAX(dt_notific)
+    rect rgb(96, 165, 250)
+        Note over ORC,DB: Nó 1 · calculate_metrics
+        ORC->>DB: execute_metric_query ×4 (aumento, mortalidade, UTI, vacinação)
+        DB-->>ORC: valores das métricas
+        ORC->>DB: get_data_ref() → MAX(dt_notific)
         DB-->>ORC: data de referência
-        Note over ORC: validate_metrics() - guardrail
+        Note over ORC: guardrail · validate_metrics()
         ORC->>AL: log_decision(calculate_metrics)
     end
 
-    rect rgb(230, 255, 235)
-        Note over ORC,CT: generate_charts
-        ORC->>DB: execute_tabular_query(daily_cases_30d)
-        DB-->>ORC: série 30d
-        ORC->>CT: generate_daily_cases_chart(data)
-        CT-->>ORC: PNG matplotlib + Plotly fig
-        ORC->>DB: execute_tabular_query(monthly_cases_12m)
-        DB-->>ORC: série 12m
-        ORC->>CT: generate_monthly_cases_chart(data)
-        CT-->>ORC: PNG matplotlib + Plotly fig
+    rect rgb(74, 222, 128)
+        Note over ORC,DB: Nó 2 · generate_charts
+        ORC->>DB: série diária 30d + série mensal 12m
+        DB-->>ORC: datasets temporais
+        Note over ORC: gera PNG matplotlib + Plotly fig (daily & monthly)
         ORC->>AL: log_decision(generate_charts)
     end
 
-    rect rgb(255, 245, 220)
-        Note over ORC,PGV: search_news + retrieve_semantic
-        Note over ORC: validate_user_input() - guardrail
-        ORC->>NT: search_and_index_news(query, max=3)
-        NT->>NT: DuckDuckGo br-pt -> embeddings BGE 1024d
-        NT->>PGV: Persiste notícias + vetores
-        PGV-->>ORC: news indexadas
-        ORC->>AL: log_decision(search_news)
-        ORC->>PGV: semantic_search_news(query, k=3)
-        PGV-->>ORC: top-3 por similaridade coseno HNSW
-        ORC->>AL: log_decision(retrieve_semantic)
+    rect rgb(251, 191, 36)
+        Note over ORC,NE: Nó 3 · search_news + retrieve_semantic
+        Note over ORC: guardrail · validate_user_input()
+        ORC->>NE: DuckDuckGo br-pt → embeddings BGE 1024d → pgvector
+        NE-->>ORC: top-3 notícias por similaridade coseno HNSW
+        ORC->>AL: log_decision(search_news + retrieve_semantic)
     end
 
-    rect rgb(255, 235, 235)
-        Note over ORC,LLM: analyze
+    rect rgb(248, 113, 113)
+        Note over ORC,LLM: Nó 4 · analyze
         ORC->>LLM: safe_invoke(system_prompt + métricas + notícias)
-        LLM-->>ORC: análise contextualizada
-        Note over ORC: validate_output_pii() - guardrail
+        LLM-->>ORC: análise contextualizada (temp=0.2)
+        Note over ORC: guardrail · validate_output_pii()
         ORC->>AL: log_llm_call() + log_decision(analyze)
     end
 
-    rect rgb(245, 230, 255)
-        Note over ORC,RT: compile_report
-        ORC->>RT: generate_report(métricas, notícias, análise, gráficos)
-        RT-->>ORC: Markdown + PDF fpdf2 + gráficos embutidos
+    rect rgb(196, 181, 253)
+        Note over ORC: Nó 5 · compile_report
+        Note over ORC: Markdown + PDF fpdf2 com gráficos embutidos
         ORC->>AL: log_decision(compile_report)
     end
 
@@ -157,7 +141,7 @@ PII é tratado em duas camadas — **remoção no ETL** e **mascaramento no outp
 
 - Colunas PII (`NM_PACIENT`, `NU_CPF`, `NU_CNS`, `NM_MAE_PAC`, `END_*`) nunca são armazenadas no banco
 - Dados demográficos retidos apenas em nível agregado (idade em anos, sem localização exata)
-- Conformidade com LGPD; detalhes em [`docs/data_privacy.md`](docs/data_privacy.md)
+- Conformidade com LGPD; detalhes em [`docs/privs/data_privacy.md`](docs/privs/data_privacy.md)
 - Guardrail de output mascara CPF, telefone e email que eventualmente apareçam na resposta do LLM
 
 O CSV original apresenta ~0,18% de duplicatas e registros com `dt_notific` nula; ambos são descartados no ETL (`src/data/etl.py`).
@@ -410,10 +394,17 @@ srag-agent/
 │   └── run_agent.py           # CLI runner do agente
 └── docs/
     ├── diagrams/
-    │   └── architecture.drawio # Diagrama conceitual — abrir no draw.io e exportar PDF
-    ├── screenshots/            # Prints da UI para o README (adicionar manualmente)
-    ├── data_privacy.md         # Decisões PII/LGPD
-    └── metrics_validation.md   # Validação cruzada das métricas
+    │   ├── architecture.drawio       # Diagrama completo — abrir no draw.io e exportar PDF
+    │   └── architecture_macro.drawio # Visão macro da arquitetura
+    ├── pdfs/
+    │   ├── architecture_full.pdf     # Diagrama conceitual completo (entregável)
+    │   ├── architecture_macro.pdf    # Visão macro em PDF
+    │   └── exemplo_relatorio_srag_20260101.pdf  # Exemplo de relatório gerado pelo agente
+    ├── screenshots/            # Prints da UI para o README
+    ├── metrics/
+    │   └── metrics_validation.md    # Validação cruzada das métricas
+    └── privs/
+        └── data_privacy.md          # Decisões PII/LGPD
 ```
 
 ---
