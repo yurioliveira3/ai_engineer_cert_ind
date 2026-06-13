@@ -6,6 +6,7 @@ Epidemiological report generator with LLM analysis, charts, and news context.
 from __future__ import annotations
 
 import os
+import re
 from datetime import date
 
 import plotly.io as pio
@@ -177,6 +178,19 @@ def main():
     # ─── Charts ────────────────────────────────────────────────────────────
     charts = report.get("charts", {})
 
+    def _strip_charts_section(md: str) -> str:
+        """Remove a seção '## Gráficos' do markdown (apenas para exibição).
+
+        A seção vai do cabeçalho '## Gráficos' até o próximo cabeçalho '## ' (ou
+        o fim do texto). O markdown original permanece intacto para o export.
+        """
+        return re.sub(
+            r"\n*## Gráficos\b.*?(?=\n## |\Z)",
+            "\n",
+            md,
+            flags=re.DOTALL,
+        ).strip()
+
     def _render_chart(col, info, caption):
         """Render a chart from fig_json (preferred) or PNG path (fallback)."""
         fig_json = info.get("fig_json", "") if isinstance(info, dict) else ""
@@ -211,7 +225,10 @@ def main():
     report_markdown = report.get("report_markdown", "")
     if report_markdown:
         st.subheader("📄 Relatório")
-        st.markdown(report_markdown)
+        # Os gráficos já são exibidos no topo desta página; removemos a seção
+        # "## Gráficos" apenas da exibição. O report_markdown/PDF exportado
+        # continua intacto, então as figuras seguem aparecendo no export.
+        st.markdown(_strip_charts_section(report_markdown))
 
     # ─── PDF download ───────────────────────────────────────────────────────
     report_pdf_path = report.get("report_pdf_path", "")
